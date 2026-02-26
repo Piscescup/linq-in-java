@@ -11,11 +11,12 @@ import java.util.*;
 public interface Groupable<K, E> {
     K getKey();
 
+    List<E> getElements();
 }
 
 class ReadOnlyGroup<K, E> implements Groupable<K, E>, List<E> {
-    private K key;
-    private List<E> elements;
+    private final K key;
+    private final List<E> elements;
 
     ReadOnlyGroup(K key) {
         this.key = key;
@@ -145,5 +146,10 @@ class ReadOnlyGroup<K, E> implements Groupable<K, E>, List<E> {
     @Override
     public K getKey() {
         return this.key;
+    }
+
+    @Override
+    public List<E> getElements() {
+        return elements;
     }
 }
