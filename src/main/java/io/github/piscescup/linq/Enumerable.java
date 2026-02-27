@@ -46,23 +46,32 @@ import java.util.stream.StreamSupport;
  *
  * <pre>{@code
  * record Person(String name, int age) {
- *
+ *     @Override
+ *     public String toString() {
+ *         return name + " (" + age + " years)";
+ *     }
  * }
  *
  * Enumerable<Person> people = Enumerable.of(
  *     new Person("Alice", 30),
  *     new Person("Bob", 25),
  *     new Person("Charlie", 35),
- *     new Person("Diana", 28),
+ *     new Person("Diana", 12),
  *     new Person("Eve", 22),
  *     new Person("Frank", 40),
- *     new Person("Grace", 27)
+ *     new Person("Grace", 5)
  * );
  *
  * List<Person> adult = people
  *     .where(p -> p.age() >= 18)
- *     .toList();
- *
+ *     .toList()
+ *     .forEach(System.out::println);
+ * // Output:
+ * // Alice (30 years)
+ * // Bob (25 years)
+ * // Charlie (35 years)
+ * // Eve (22 years)
+ * // Frank (40 years)
  * }</pre>
  *
  * @param <T> element type of the sequence
@@ -2568,7 +2577,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws RuntimeException if the stream cannot be created (implementation-defined)
      */
     default Stream<T> toStream() {
-        return StreamSupport.stream(this.spliterator(), false);
+        Enumerator<T> enumerator = this.enumerator();
+        return StreamSupport.stream(this.spliterator(), false)
+            .onClose(enumerator::close);
     }
 
     /**
