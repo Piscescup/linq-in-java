@@ -5,8 +5,12 @@ import io.github.piscescup.interfaces.Pair;
 import io.github.piscescup.interfaces.exfunction.BinFunction;
 import io.github.piscescup.interfaces.exfunction.BinPredicate;
 import io.github.piscescup.linq.enumerable.Groupable;
+import io.github.piscescup.linq.operation.intermediate.AppendPrepend;
+import io.github.piscescup.linq.operation.terminal.*;
 import org.jetbrains.annotations.Nullable;
 
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -131,11 +135,13 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code aggregator} or {@code resultSelector} is {@code null}
      * @throws RuntimeException if enumeration fails or any supplied function throws
      */
-    <A, R> R aggregate(
+    default <A, R> R aggregate(
         A identity,
         BinFunction<? super A, ? super T, ? extends A> aggregator,
         Function<? super A, ? extends R> resultSelector
-    );
+    ) {
+        return Aggregate.aggregate(this, identity, aggregator, resultSelector);
+    }
 
     /**
      * Aggregates the sequence starting from {@code seed}.
@@ -163,10 +169,12 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code aggregator} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code aggregator} throws
      */
-    <R> R aggregate(
+    default  <R> R aggregate(
         R seed,
         BinFunction<? super R, ? super T, ? extends R> aggregator
-    );
+    ) {
+        return Aggregate.aggregate(this, seed, aggregator);
+    }
 
     /**
      * Aggregates the sequence without an explicit seed (typically uses the first element as the seed).
@@ -193,8 +201,8 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or {@code aggregator} throws
      */
-    <R> R aggregate(
-        BinFunction<? super R, ? super T, ? extends R> aggregator
+    T aggregate(
+        BinFunction<? super T, ? super T, ? extends T> aggregator
     );
 
     /**
@@ -290,7 +298,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code predicate} throws
      */
-    boolean all(Predicate<? super T> predicate);
+    default boolean all(Predicate<? super T> predicate) {
+        return AllAny.all(this, predicate);
+    }
 
     /**
      * Returns {@code true} if any element satisfies the predicate.
@@ -309,7 +319,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code predicate} throws
      */
-    boolean any(Predicate<? super T> predicate);
+    default boolean any(Predicate<? super T> predicate) {
+        return AllAny.any(this, predicate);
+    }
 
     /**
      * Appends a single element to the end of this sequence.
@@ -332,7 +344,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @return a new sequence ending with {@code element}
      * @throws RuntimeException if the new sequence cannot be created (implementation-defined)
      */
-    Enumerable<T> append(T element);
+    default Enumerable<T> append(T element) {
+        return AppendPrepend.append(this, element);
+    }
 
     /**
      * Returns this sequence as an {@link Enumerable}. Useful when adapting types or returning self.
@@ -348,7 +362,49 @@ public interface Enumerable<T> extends Iterable<T> {
      * @return this sequence (or an equivalent enumerable)
      * @throws RuntimeException if adaptation fails (implementation-defined)
      */
-    Enumerable<T> toEnumerable();
+    default Enumerable<T> toEnumerable() {
+        return (Enumerable<T>) this;
+    }
+
+    default double intAverageNullable() {
+        return Average.intAverageNullable((Enumerable<Integer>) this);
+    }
+
+    default double intAverageNonNull() {
+        return Average.intAverageNonNull((Enumerable<Integer>) this);
+    }
+
+    default double longAverageNullable() {
+        return Average.longAverageNullable((Enumerable<Long>) this);
+    }
+
+    default double longAverageNonNull() {
+        return Average.longAverageNonNull((Enumerable<Long>) this);
+    }
+
+    default double doubleAverageNullable() {
+        return Average.doubleAverageNullable((Enumerable<Double>) this);
+    }
+
+    default double doubleAverageNonNull() {
+        return Average.doubleAverageNonNull((Enumerable<Double>) this);
+    }
+
+    default double floatAverageNullable() {
+        return Average.floatAverageNullable((Enumerable<Float>) this);
+    }
+
+    default double floatAverageNonNull() {
+        return Average.floatAverageNonNull((Enumerable<Float>) this);
+    }
+
+    default BigDecimal decimalAverageNullable(MathContext context) {
+        return Average.decimalAverageNullable((Enumerable<java.math.BigDecimal>) this, context);
+    }
+
+    default BigDecimal decimalAverageNonNull(MathContext context) {
+        return Average.decimalAverageNonNull((Enumerable<java.math.BigDecimal>) this, context);
+    }
 
     /**
      * Computes the average using a double mapping.
@@ -373,7 +429,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or {@code doubleMapping} throws
      */
-    double average(ToDoubleFunction<? super T> doubleMapping);
+    default double average(ToDoubleFunction<? super T> doubleMapping) {
+        return Average.average(this, doubleMapping);
+    }
 
     /**
      * Computes the average using an int mapping.
@@ -398,7 +456,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or {@code intMapping} throws
      */
-    double average(ToIntFunction<? super T> intMapping);
+    default double average(ToIntFunction<? super T> intMapping) {
+        return Average.average(this, intMapping);
+    }
 
     /**
      * Computes the average using a long mapping.
@@ -423,7 +483,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or {@code longMapping} throws
      */
-    double average(ToLongFunction<? super T> longMapping);
+    default double average(ToLongFunction<? super T> longMapping) {
+        return Average.average(this, longMapping);
+    }
 
     /**
      * Splits the sequence into arrays of size {@code size} (last chunk may be smaller).
@@ -497,7 +559,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @return whether contained
      * @throws RuntimeException if enumeration fails
      */
-    boolean contains(T element);
+    default boolean contains(T element) {
+        return Contains.contains(this, element);
+    }
 
     /**
      * Returns whether the sequence contains an element using a comparator-defined equality.
@@ -522,7 +586,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code comparator} throws
      */
-    boolean contains(T element, Comparator<? super T> comparator);
+    default boolean contains(T element, Comparator<? super T> comparator) {
+        return Contains.contains(this, element, comparator);
+    }
 
     /**
      * Counts all elements in the sequence.
@@ -539,7 +605,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @return number of elements
      * @throws RuntimeException if enumeration fails
      */
-    long count();
+    default long count() {
+        return Count.count(this);
+    }
 
     /**
      * Counts elements matching a predicate.
@@ -562,7 +630,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code predicate} throws
      */
-    long count(Predicate<? super T> predicate);
+    default long count(Predicate<? super T> predicate) {
+        return Count.count(this, predicate);
+    }
 
     /**
      * Counts elements by key, producing pairs of (key, count).
@@ -618,7 +688,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws RuntimeException if enumeration fails
      */
     @Nullable
-    T defaultIfEmpty();
+    default Enumerable<T> defaultIfEmpty() {
+        return defaultIfEmpty(null);
+    }
 
     /**
      * Returns {@code defaultElement} if the sequence is empty, otherwise an implementation-defined element
@@ -637,7 +709,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @return {@code defaultElement} if empty; otherwise an element from the sequence (recommended: first)
      * @throws RuntimeException if enumeration fails
      */
-    T defaultIfEmpty(T defaultElement);
+    default Enumerable<T> defaultIfEmpty(T defaultElement) {
+        return null;
+    }
 
     /**
      * Removes duplicates using element equality (no explicit comparator).
@@ -748,7 +822,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws IndexOutOfBoundsException if {@code index < 0} or the sequence has fewer than {@code index + 1} elements
      * @throws RuntimeException if enumeration fails
      */
-    T elementAt(int index);
+    default T elementAt(int index) {
+        return ElementAt.elementAt(this, index);
+    }
 
     /**
      * Returns the element at {@code index}, or {@code defaultElement} if out of range.
@@ -772,7 +848,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @return element at {@code index}, or {@code defaultElement} if out of range
      * @throws RuntimeException if enumeration fails
      */
-    T elementAtDefault(int index, T defaultElement);
+    default T elementAtDefault(int index, T defaultElement) {
+        return ElementAt.elementAtOrDefault(this, index, defaultElement);
+    }
 
     /**
      * Returns an empty sequence of the same element type.
@@ -911,7 +989,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws java.util.NoSuchElementException if the sequence is empty
      * @throws RuntimeException if enumeration fails
      */
-    T first();
+    default T first() {
+        return First.first(this);
+    }
 
     /**
      * Returns the first element matching {@code predicate}.
@@ -936,7 +1016,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws java.util.NoSuchElementException if no element matches {@code predicate}
      * @throws RuntimeException if enumeration fails or {@code predicate} throws
      */
-    T first(Predicate<? super T> predicate);
+    default T first(Predicate<? super T> predicate) {
+        return First.first(this, predicate);
+    }
 
     /**
      * Returns the first element, or {@code defaultElement} if empty.
@@ -954,7 +1036,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @return first element, or {@code defaultElement} if empty
      * @throws RuntimeException if enumeration fails
      */
-    T firstOrDefault(T defaultElement);
+    default T firstOrDefault(T defaultElement) {
+        return First.firstOrDefault(this, defaultElement);
+    }
 
     /**
      * Returns the first element matching {@code predicate}, or {@code defaultElement} if none matches.
@@ -974,7 +1058,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code predicate} throws
      */
-    T firstOrDefault(T defaultElement, Predicate<? super T> predicate);
+    default T firstOrDefault(T defaultElement, Predicate<? super T> predicate) {
+        return First.firstOrDefault(this, predicate, defaultElement);
+    }
 
     /* ------------------------------------------------------------ */
     /* Grouping / Joining                                            */
@@ -1474,7 +1560,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws java.util.NoSuchElementException if the sequence is empty
      * @throws RuntimeException if enumeration fails
      */
-    T last();
+    default T last() {
+        return Last.last(this);
+    }
 
     /**
      * Returns the last element matching {@code predicate}.
@@ -1498,7 +1586,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws java.util.NoSuchElementException if no element matches {@code predicate}
      * @throws RuntimeException if enumeration fails or {@code predicate} throws
      */
-    T last(Predicate<? super T> predicate);
+    default T last(Predicate<? super T> predicate) {
+        return Last.last(this, predicate);
+    }
 
     /**
      * Returns the last element or {@code defaultElement} if empty.
@@ -1516,7 +1606,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @return last element, or {@code defaultElement} if empty
      * @throws RuntimeException if enumeration fails
      */
-    T lastOrDefault(T defaultElement);
+    default T lastOrDefault(T defaultElement) {
+        return Last.lastOrDefault(this, defaultElement);
+    }
 
     /**
      * Returns the last element matching {@code predicate} or {@code defaultElement} if none matches.
@@ -1536,7 +1628,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code predicate} throws
      */
-    T lastOrDefault(Predicate<? super T> predicate, T defaultElement);
+    default T lastOrDefault(Predicate<? super T> predicate, T defaultElement) {
+        return Last.lastOrDefault(this, predicate, defaultElement);
+    }
 
     /**
      * Left-joins this sequence with {@code other}.
@@ -1706,7 +1800,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    <K> T maxBy(Function<? super T, ? extends K> keyExtractor, Comparator<? super K> comparator);
+    default <K> T maxBy(Function<? super T, ? extends K> keyExtractor, Comparator<? super K> comparator) {
+        return Max.maxBy(this, keyExtractor, comparator);
+    }
 
     /**
      * Returns the element with maximum extracted key using natural key ordering.
@@ -1734,7 +1830,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws ClassCastException if extracted keys are not mutually comparable (implementation-defined)
      * @throws RuntimeException if enumeration fails or {@code keyExtractor} throws
      */
-    <K extends Comparable<? super K>> T maxBy(Function<? super T, ? extends K> keyExtractor);
+    default <K extends Comparable<? super K>> T maxBy(Function<? super T, ? extends K> keyExtractor) {
+        return Max.maxBy(this, keyExtractor);
+    }
 
     /**
      * Returns the minimum int value projected by {@code intMapping}.
@@ -1745,7 +1843,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or mapper throws
      */
-    int min(ToIntFunction<? super T> intMapping);
+    default int min(ToIntFunction<? super T> intMapping) {
+        return Min.min(this, intMapping);
+    }
 
     /**
      * Returns the minimum long value projected by {@code longMapping}.
@@ -1756,7 +1856,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or mapper throws
      */
-    long min(ToLongFunction<? super T> longMapping);
+    default long min(ToLongFunction<? super T> longMapping) {
+        return Min.min(this, longMapping);
+    }
 
     /**
      * Returns the minimum double value projected by {@code doubleMapping}.
@@ -1767,7 +1869,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or mapper throws
      */
-    double min(ToDoubleFunction<? super T> doubleMapping);
+    default double min(ToDoubleFunction<? super T> doubleMapping) {
+        return Min.min(this, doubleMapping);
+    }
 
     /**
      * Returns the element with minimum extracted key using a comparator.
@@ -1780,7 +1884,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    <K> T minBy(Function<? super T, ? extends K> keyExtractor, Comparator<? super K> comparator);
+    default  <K> T minBy(Function<? super T, ? extends K> keyExtractor, Comparator<? super K> comparator) {
+        return Min.minBy(this, keyExtractor, comparator);
+    }
 
     /**
      * Returns the element with minimum extracted key using natural key ordering.
@@ -1793,7 +1899,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws ClassCastException if extracted keys are not mutually comparable (implementation-defined)
      * @throws RuntimeException if enumeration fails or {@code keyExtractor} throws
      */
-    <K extends Comparable<? super K>> T minBy(Function<? super T, ? extends K> keyExtractor);
+    default <K extends Comparable<? super K>> T minBy(Function<? super T, ? extends K> keyExtractor) {
+        return Min.minBy(this, keyExtractor);
+    }
 
     /**
      * Filters elements by runtime type.
@@ -2166,7 +2274,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws IllegalStateException if the sequence contains more than one element
      * @throws RuntimeException if enumeration fails
      */
-    T single();
+    default T single() {
+        return Single.single(this);
+    }
 
     /**
      * Returns the single element matching {@code predicate}.
@@ -2189,7 +2299,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws IllegalStateException if more than one element matches {@code predicate}
      * @throws RuntimeException if enumeration fails or predicate throws
      */
-    T single(Predicate<? super T> predicate);
+    default T single(Predicate<? super T> predicate) {
+        return Single.single(this, predicate);
+    }
 
     /**
      * Returns the single element or {@code defaultElement} when the sequence is empty;
@@ -2210,7 +2322,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws IllegalStateException if the sequence contains more than one element
      * @throws RuntimeException if enumeration fails
      */
-    T singleOrDefault(T defaultElement);
+    default T singleOrDefault(T defaultElement) {
+        return Single.singleOrDefault(this, defaultElement);
+    }
 
     /**
      * Returns the single element matching {@code predicate} or {@code defaultElement} when none matches;
@@ -2233,7 +2347,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws IllegalStateException if more than one element matches {@code predicate}
      * @throws RuntimeException if enumeration fails or predicate throws
      */
-    T singleOrDefault(Predicate<? super T> predicate, T defaultElement);
+    default T singleOrDefault(Predicate<? super T> predicate, T defaultElement) {
+        return Single.singleOrDefault(this, predicate, defaultElement);
+    }
 
     /**
      * Skips the first {@code count} elements.

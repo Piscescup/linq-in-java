@@ -18,6 +18,12 @@ abstract class AbstractEnumerator<T> implements Enumerator<T> {
     private boolean checkedNext;
     private boolean hasNext;
 
+    private final long threadId;
+
+    protected AbstractEnumerator() {
+        this.threadId = Thread.currentThread().threadId();
+    }
+
     @Override
     public abstract boolean moveNext();
 
