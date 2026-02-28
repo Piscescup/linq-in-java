@@ -4,6 +4,7 @@ import io.github.piscescup.interfaces.Pair;
 import io.github.piscescup.interfaces.exfunction.BinFunction;
 import io.github.piscescup.interfaces.exfunction.BinPredicate;
 import io.github.piscescup.linq.enumerable.Groupable;
+import io.github.piscescup.util.validation.NullCheck;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -19,6 +20,14 @@ import java.util.function.*;
  * @since 1.0.0
  */
 public class Linq<T> implements Enumerable<T> {
+
+    private final Supplier<? extends Enumerator<T>> factory;
+
+    private Linq(Supplier<? extends Enumerator<T>> factory) {
+        NullCheck.requireNonNull(factory);
+        this.factory = factory;
+    }
+
     /**
      * Creates a new enumerator for iterating this sequence.
      *
@@ -41,7 +50,7 @@ public class Linq<T> implements Enumerable<T> {
      */
     @Override
     public Enumerator<T> enumerator() {
-        return null;
+        return factory.get();
     }
 
     /**
@@ -131,7 +140,9 @@ public class Linq<T> implements Enumerable<T> {
      * @throws RuntimeException       if enumeration fails or {@code aggregator} throws
      */
     @Override
-    public <R> R aggregate(BinFunction<? super R, ? super T, ? extends R> aggregator) {
+    public T aggregate(
+        BinFunction<? super T, ? super T, ? extends T> aggregator
+    ) {
         return null;
     }
 
@@ -270,25 +281,6 @@ public class Linq<T> implements Enumerable<T> {
      */
     @Override
     public Enumerable<T> append(T element) {
-        return null;
-    }
-
-    /**
-     * Returns this sequence as an {@link Enumerable}. Useful when adapting types or returning self.
-     *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>May return {@code this} directly, or a lightweight wrapper.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(1). Space: O(1).</p>
-     *
-     * @return this sequence (or an equivalent enumerable)
-     * @throws RuntimeException if adaptation fails (implementation-defined)
-     */
-    @Override
-    public Enumerable<T> toEnumerable() {
         return null;
     }
 
