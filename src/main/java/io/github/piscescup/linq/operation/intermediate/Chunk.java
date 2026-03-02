@@ -53,12 +53,12 @@ public final class Chunk {
      * @throws NullPointerException     if source is null
      * @throws IllegalArgumentException if size <= 0
      */
-    public static <T> Enumerable<T[]> chunk(Enumerable<T> source, int size) {
+    public static <T> Enumerable<T[]> chunk(Enumerable<T> source, int size, Class<T> clazz) {
         NullCheck.requireNonNull(source);
         if (size <= 0) {
             throw new IllegalArgumentException("Chunk size must be greater than zero.");
         }
-        return new ChunkEnumerable<>(source, size);
+        return new ChunkEnumerable<>(source, size, clazz);
     }
 
     /**
@@ -104,15 +104,17 @@ class ChunkEnumerable<T> implements Enumerable<T[]> {
 
     private final Enumerable<T> source;
     private final int size;
+    private final Class<T> clazz;
 
-    ChunkEnumerable(Enumerable<T> source, int size) {
+    ChunkEnumerable(Enumerable<T> source, int size, Class<T> clazz) {
         this.source = source;
         this.size = size;
+        this.clazz = clazz;
     }
 
     @Override
     public Enumerator<T[]> enumerator() {
-        return new ChunkEnumerator<>(source, size);
+        return new ChunkEnumerator<>(source, size, clazz);
     }
 }
 
@@ -120,12 +122,14 @@ class ChunkEnumerator<T> extends AbstractEnumerator<T[]> {
 
     private final Enumerable<T> source;
     private final int size;
+    private final Class<T> clazz;
 
     private Enumerator<T> sourceEnumerator;
 
-    ChunkEnumerator(Enumerable<T> source, int size) {
+    ChunkEnumerator(Enumerable<T> source, int size, Class<T> clazz) {
         this.source = source;
         this.size = size;
+        this.clazz = clazz;
     }
 
     @Override
@@ -140,7 +144,7 @@ class ChunkEnumerator<T> extends AbstractEnumerator<T[]> {
         }
 
         @SuppressWarnings("unchecked")
-        T[] buffer = (T[]) new Object[size];
+        T[] buffer = (T[]) Array.newInstance(clazz, size);
 
         int count = 0;
 
@@ -152,7 +156,7 @@ class ChunkEnumerator<T> extends AbstractEnumerator<T[]> {
             this.current = buffer;
         } else {
             @SuppressWarnings("unchecked")
-            T[] last = (T[]) new Object[count];
+            T[] last = (T[]) Array.newInstance(clazz, count);
             System.arraycopy(buffer, 0, last, 0, count);
             this.current = last;
         }
@@ -162,7 +166,7 @@ class ChunkEnumerator<T> extends AbstractEnumerator<T[]> {
 
     @Override
     protected AbstractEnumerator<T[]> clone() throws CloneNotSupportedException {
-        return new ChunkEnumerator<>(source, size);
+        return new ChunkEnumerator<>(source, size, clazz);
     }
 
     @Override

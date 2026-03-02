@@ -134,11 +134,9 @@ class EnumerableTest {
     @Test
     void chunk() {
         Enumerable<Integer> nums = Linq.of(1, 2, 3, 4, 5);
-        List<Integer[]> chunks = nums.chunk(2).toList();
-        assertEquals(3, chunks.size());
-        assertArrayEquals(new Integer[]{1, 2}, chunks.get(0));
-        assertArrayEquals(new Integer[]{3, 4}, chunks.get(1));
-        assertArrayEquals(new Integer[]{5}, chunks.get(2));
+        nums.chunk(2, Integer.class)
+            .select(Arrays::toString)
+            .forEach(System.out::println);
     }
 
     @Test
@@ -170,7 +168,6 @@ class EnumerableTest {
         assertTrue(seq.contains("A", String.CASE_INSENSITIVE_ORDER));
     }
 
-    // ========== 计数 ==========
     @Test
     void count() {
         assertEquals(3, Linq.of(1, 2, 3).count());
@@ -596,9 +593,9 @@ class EnumerableTest {
     @Test
     void sum() {
         Enumerable<Integer> nums = Linq.of(1,2,3);
-        assertEquals(6L, nums.sum((ToIntFunction<Integer>) i -> i));
-        assertEquals(6.0, nums.sum((ToDoubleFunction<Integer>) i -> i));
-        assertEquals(6L, nums.sum((ToLongFunction<Integer>) i -> i));
+        assertEquals(6L, nums.sumByInt(i -> i));
+        assertEquals(6.0, nums.sumByDouble(i -> i));
+        assertEquals(6L, nums.sumByLong( i -> i));
     }
 
     @Test

@@ -596,8 +596,8 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws IllegalArgumentException if {@code size <= 0}
      * @throws RuntimeException if chunking cannot be performed (implementation-defined)
      */
-    default Enumerable<T[]> chunk(int size) {
-        return Chunk.chunk(this, size);
+    default Enumerable<T[]> chunk(int size, Class<T> clazz) {
+        return Chunk.chunk(this, size, clazz);
     }
 
     /**
