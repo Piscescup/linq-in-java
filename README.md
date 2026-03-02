@@ -148,6 +148,7 @@ void main() {
 // charlie35@charlie.com
 // frank35@frank.com
 ```
+---
 
 ## `LINQ` in Java
 
@@ -159,6 +160,8 @@ similar to the capabilities of `LINQ` in `C#`. <br>
 
 The goal is to make it easier for Java developers to write expressive and maintainable code 
 when working with collections of data.<br>
+
+---
 
 ## Features
 
@@ -196,6 +199,7 @@ Factory method are provided to create `Enumerable` in `Linq.java`:
 - `Linq.repeat(T element, int count)` – Create an `Enumerable` that generates a sequence that contains repeated values.
 - `Linq.empty()` – Create an empty `Enumerable` Object.
 
+---
 
 ## Installation
 To use `LINQ in Java`, you can add the dependency to your project .
@@ -215,16 +219,6 @@ dependencies {
     implementation 'io.github.piscescup:linq-in-java:1.0.0'
 }
 ```
-
-很好 👍 你这个 `Usage` 已经有一个基础示例了。
-我帮你扩展一整套 **专业、结构清晰、覆盖核心 API 分类** 的示例，适合直接放 README。
-
-保持风格：
-
-* 简洁
-* 真实可运行
-* 展示链式能力
-* 覆盖不同 API 类别
 
 ---
 
@@ -410,6 +404,8 @@ void main() {
     System.out.println(repeat);
 }
 ```
+
+---
 
 ## Contract
 - GitHub: [linq-in-java Issue](https://github.com/Piscescup/linq-in-java/issues)
