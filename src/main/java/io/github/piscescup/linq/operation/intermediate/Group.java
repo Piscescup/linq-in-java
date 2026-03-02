@@ -10,6 +10,7 @@ import java.util.function.Function;
 import io.github.piscescup.linq.Enumerator;
 import io.github.piscescup.linq.enumerator.AbstractEnumerator;
 import io.github.piscescup.util.validation.NullCheck;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
@@ -26,9 +27,6 @@ public final class Group {
         );
     }
 
-    /* ------------------------------------------------------------ */
-    /* groupBy: key + elementSelector + resultMapping                */
-    /* ------------------------------------------------------------ */
 
     public static <T, K, E, R> Enumerable<R> groupBy(
         Enumerable<T> source,
@@ -374,6 +372,11 @@ record Grouping<K, E>(K key, List<E> elements) implements Groupable<K, E> {
 
     public Enumerator<E> enumerator() {
         return new ListEnumerator<>(elements);
+    }
+
+    @Override
+    public @NotNull String toString() {
+        return "Key '%s' -> %s".formatted(key, elements);
     }
 }
 

@@ -2305,7 +2305,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code doubleMapping} is {@code null}
      * @throws RuntimeException if enumeration fails or mapper throws
      */
-    default double sum(ToDoubleFunction<? super T> doubleMapping) {
+    default double sumByDouble(ToDoubleFunction<? super T> doubleMapping) {
         return Sum.sum(this, doubleMapping);
     }
 
@@ -2322,7 +2322,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code intMapping} is {@code null}
      * @throws RuntimeException if enumeration fails or mapper throws
      */
-    default long sum(ToIntFunction<? super T> intMapping) {
+    default long sumByInt(ToIntFunction<? super T> intMapping) {
         return Sum.sum(this, intMapping);
     }
 
@@ -2339,7 +2339,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code longMapping} is {@code null}
      * @throws RuntimeException if enumeration fails or mapper throws
      */
-    default long sum(ToLongFunction<? super T> longMapping) {
+    default long sumByLong(ToLongFunction<? super T> longMapping) {
         return Sum.sum(this, longMapping);
     }
 

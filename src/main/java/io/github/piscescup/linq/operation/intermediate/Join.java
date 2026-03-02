@@ -229,7 +229,6 @@ public final class Join {
         NullCheck.requireNonNull(resultMapping);
         NullCheck.requireNonNull(comparator);
 
-        // 右连接：为了保持 “以 other 为外表” 的语义，我们做一份 source lookup，然后遍历 other 输出
         return new RightJoinEnumerable<>(source, other, selfKeyExtractor, otherKeyExtractor, resultMapping, comparator);
     }
 

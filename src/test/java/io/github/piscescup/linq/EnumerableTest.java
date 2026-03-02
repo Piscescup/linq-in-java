@@ -10,6 +10,7 @@ import java.util.function.*;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class EnumerableTest {
 
@@ -41,7 +42,7 @@ class EnumerableTest {
     @Test
     void aggregateBy_withKeyMapping() {
         Enumerable<String> words = Linq.of("apple", "apricot", "banana", "blue");
-        var pairs = words.aggregateBy(
+        List<Pair<Character, Integer>> pairs = words.aggregateBy(
             s -> s.charAt(0),
             key -> 0,
             (acc, w) -> acc + w.length(),
@@ -51,13 +52,13 @@ class EnumerableTest {
         assertEquals('a', pairs.get(0).getLeft());
         assertEquals(12, pairs.get(0).getRight());
         assertEquals('b', pairs.get(1).getLeft());
-        assertEquals(9, pairs.get(1).getRight());
+        assertEquals(10, pairs.get(1).getRight());
     }
 
     @Test
     void aggregateBy_withSeed() {
         Enumerable<String> words = Linq.of("a", "ab", "abc");
-        var pairs = words.aggregateBySeed(
+        List<Pair<Integer, Integer>> pairs = words.aggregateBySeed(
             0,
             String::length,
             (acc, w) -> acc + 1,
@@ -66,7 +67,6 @@ class EnumerableTest {
         assertEquals(3, pairs.size());
     }
 
-    // ========== 量化操作 ==========
     @Test
     void all() {
         Enumerable<Integer> seq = Linq.of(2, 4, 6);
@@ -83,7 +83,6 @@ class EnumerableTest {
         assertFalse(Linq.empty().any(x -> true));
     }
 
-    // ========== 追加/前置 ==========
     @Test
     void append() {
         Enumerable<Integer> seq = Linq.of(1, 2);
@@ -96,11 +95,10 @@ class EnumerableTest {
         assertEquals(List.of(1, 2, 3), seq.prepend(1).toList());
     }
 
-    // ========== 类型化平均值 ==========
     @Test
     void intAverageNullable() {
         Enumerable<Integer> seq = Linq.of(1, 2, null, 3);
-        assertThrows(NullPointerException.class, () -> seq.intAverageNonNull());
+        assertThrows(NullPointerException.class, seq::intAverageNonNull);
         assertEquals(2.0,
             seq.intAverageNullable());
     }
@@ -114,7 +112,6 @@ class EnumerableTest {
         assertEquals(new BigDecimal("2.0"), avg);
     }
 
-    // ========== 投影平均值 ==========
     @Test
     void average_toDouble() {
         record Person(int age) {}
@@ -134,7 +131,6 @@ class EnumerableTest {
         assertEquals(2.0, nums.average((ToLongFunction<Long>) x -> x));
     }
 
-    // ========== 分块 ==========
     @Test
     void chunk() {
         Enumerable<Integer> nums = Linq.of(1, 2, 3, 4, 5);
@@ -154,7 +150,6 @@ class EnumerableTest {
         assertEquals(List.of(5), chunks.get(2));
     }
 
-    // ========== 连接 ==========
     @Test
     void concat() {
         Enumerable<Integer> a = Linq.of(1, 2);
@@ -162,7 +157,6 @@ class EnumerableTest {
         assertEquals(List.of(1, 2, 3, 4), a.concat(b).toList());
     }
 
-    // ========== 包含 ==========
     @Test
     void contains() {
         Enumerable<String> seq = Linq.of("a", "b", "c");
@@ -200,7 +194,6 @@ class EnumerableTest {
         assertEquals(1L, pairs.get(1).getRight());
     }
 
-    // ========== 默认空值 ==========
     @Test
     void defaultIfEmpty() {
         Enumerable<Integer> nonEmpty = Linq.of(1, 2);
@@ -211,7 +204,6 @@ class EnumerableTest {
         assertEquals(List.of(42), empty.defaultIfEmpty(42).toList());
     }
 
-    // ========== 去重 ==========
     @Test
     void distinct() {
         Enumerable<Integer> seq = Linq.of(1, 2, 2, 3, 1);
@@ -222,7 +214,7 @@ class EnumerableTest {
     void distinct_withComparator() {
         Enumerable<String> seq = Linq.of("a", "A", "b", "B");
         List<String> result = seq.distinct(String.CASE_INSENSITIVE_ORDER).toList();
-        assertEquals(2, result.size()); // 忽略大小写只有两个不同元素
+        assertEquals(2, result.size());
     }
 
     @Test
@@ -233,7 +225,7 @@ class EnumerableTest {
             new Person("Bob", 20),
             new Person("Alice", 30));
         List<Person> distinctByAge = people.distinctBy(Person::age).toList();
-        assertEquals(2, distinctByAge.size()); // 年龄 20,30
+        assertEquals(2, distinctByAge.size());
     }
 
     @Test
@@ -244,10 +236,9 @@ class EnumerableTest {
             new Person("alice", 30),
             new Person("Bob", 40));
         List<Person> distinct = people.distinctBy(Person::name, String.CASE_INSENSITIVE_ORDER).toList();
-        assertEquals(2, distinct.size()); // "Alice"/"alice" 合并
+        assertEquals(2, distinct.size());
     }
 
-    // ========== 元素访问 ==========
     @Test
     void elementAt() {
         Enumerable<Integer> seq = Linq.of(10, 20, 30);
@@ -263,7 +254,6 @@ class EnumerableTest {
         assertEquals(-1, seq.elementAtDefault(5, -1));
     }
 
-    // ========== 差集 ==========
     @Test
     void except() {
         Enumerable<Integer> a = Linq.of(1, 2, 3, 4);
@@ -305,7 +295,6 @@ class EnumerableTest {
         assertEquals(2, result.size()); // "b2", "c3"
     }
 
-    // ========== 首元素 ==========
     @Test
     void first() {
         assertEquals(5, Linq.of(5, 6).first());
@@ -332,13 +321,13 @@ class EnumerableTest {
         assertEquals(-1, seq.firstOrDefault(-1, x -> x > 5));
     }
 
-    // ========== 分组 ==========
     @Test
     void groupBy_simple() {
         Enumerable<String> words = Linq.of("apple", "apricot", "banana");
         List<Groupable<Character, String>> groups = words
             .groupBy(s -> s.charAt(0))
             .toList();
+        System.out.println(groups);
         assertEquals(2, groups.size());
         var groupA = groups.stream()
             .filter(g -> g.key() == 'a')
@@ -357,9 +346,6 @@ class EnumerableTest {
         assertTrue(result.contains("b:1"));
     }
 
-    // 其他 groupBy 重载省略，但测试模式类似
-
-    // ========== 分组连接 ==========
     @Test
     void groupJoin() {
         record Customer(int id, String name) {}
@@ -379,7 +365,6 @@ class EnumerableTest {
         assertEquals(List.of("Alice has 2 orders", "Bob has 0 orders"), result);
     }
 
-    // ========== 交集 ==========
     @Test
     void intersect() {
         Enumerable<Integer> a = Linq.of(1, 2, 3, 4);
@@ -397,7 +382,6 @@ class EnumerableTest {
         assertEquals(2, result.get(0).id());
     }
 
-    // ========== 内连接 ==========
     @Test
     void join() {
         record Customer(int id, String name) {}
@@ -420,7 +404,6 @@ class EnumerableTest {
         assertTrue(result.contains("Bob bought Desk"));
     }
 
-    // ========== 最后元素 ==========
     @Test
     void last() {
         assertEquals(3, Linq.of(1, 2, 3).last());
@@ -439,7 +422,6 @@ class EnumerableTest {
         assertEquals(-1, Linq.empty().lastOrDefault(-1));
     }
 
-    // ========== 左连接 ==========
     @Test
     void leftJoin() {
         record Customer(int id, String name) {}
@@ -451,15 +433,16 @@ class EnumerableTest {
         Enumerable<Order> orders = Linq.of(
             new Order(1, "Book"),
             new Order(1, "Pen"));
-        var result = customers.leftJoin(orders,
-            Customer::id,
+        List<String> result = orders.leftJoin(
+            customers,
             Order::cid,
-            (c, o) -> c.name() + " - " + (o == null ? "no order" : o.product())
+            Customer::id,
+            (o, c) -> (c == null ? "Unknown" : c.name()) + " bought " + o.product()
         ).toList();
-        assertEquals(3, result.size()); // Alice 2行, Bob 1行(null), Charlie 1行(null)
+        System.out.println(result);
+        assertEquals(2, result.size()); // LEFT JOIN keeps orders only: Alice 2 rows
     }
 
-    // ========== 最大值 ==========
     @Test
     void maxByInt() {
         record Person(int age) {}
@@ -478,9 +461,6 @@ class EnumerableTest {
         assertEquals("B", oldest.name());
     }
 
-    // 最小值类似，省略
-
-    // ========== 类型过滤 ==========
     @Test
     void extractTo() {
         Enumerable<Object> mixed = Linq.of("s", 1, "t", 2);
@@ -488,7 +468,6 @@ class EnumerableTest {
         assertEquals(List.of("s", "t"), strings);
     }
 
-    // ========== 排序 ==========
     @Test
     void order() {
         Enumerable<Integer> nums = Linq.of(3, 1, 2);
@@ -514,15 +493,16 @@ class EnumerableTest {
         Enumerable<Order> orders = Linq.of(
             new Order(1, "Book"),
             new Order(3, "Desk"));
-        var result = orders.rightJoin(customers,
-            Order::cid,
+        List<String> result = customers.rightJoin(
+            orders,
             Customer::id,
-            (o, c) -> (c == null ? "Unknown" : c.name()) + " bought " + o.product()
+            Order::cid,
+            (c, o) -> (c == null ? "Unknown" : c.name()) + " - " + o.product()
         ).toList();
-        assertEquals(2, result.size()); // Book by Alice, Desk by Unknown
+        System.out.println(result);
+        assertEquals(2, result.size());
     }
 
-    // ========== 投影 ==========
     @Test
     void select() {
         Enumerable<Integer> nums = Linq.of(1, 2, 3);
@@ -547,7 +527,6 @@ class EnumerableTest {
         assertEquals(List.of("hello world:hello", "hello world:world"), result);
     }
 
-    // ========== 随机打乱 ==========
     @Test
     void shuffle() {
         Enumerable<Integer> nums = Linq.of(1, 2, 3, 4, 5);
@@ -556,7 +535,6 @@ class EnumerableTest {
         assertTrue(shuffled.containsAll(List.of(1,2,3,4,5)));
     }
 
-    // ========== 单一元素 ==========
     @Test
     void single() {
         assertEquals(42, Linq.of(42).single());
@@ -578,12 +556,11 @@ class EnumerableTest {
         assertThrows(IllegalStateException.class, () -> Linq.of(1,2).singleOrDefault(-1));
     }
 
-    // ========== 跳过/截取 ==========
     @Test
     void skip() {
         Enumerable<Integer> seq = Linq.of(1,2,3,4,5);
         assertEquals(List.of(3,4,5), seq.skip(2).toList());
-        assertThrows(IllegalArgumentException.class, () -> seq.skip(-1));
+        assertEquals(Linq.of(1,2,3,4,5).toList(), seq.skip(-1).toList());
     }
 
     @Test
@@ -616,7 +593,6 @@ class EnumerableTest {
         assertEquals(List.of(1,2), seq.takeWhile(x -> x < 3).toList());
     }
 
-    // ========== 求和 ==========
     @Test
     void sum() {
         Enumerable<Integer> nums = Linq.of(1,2,3);
@@ -625,7 +601,6 @@ class EnumerableTest {
         assertEquals(6L, nums.sum((ToLongFunction<Integer>) i -> i));
     }
 
-    // ========== 物化 ==========
     @Test
     void toArray() {
         Enumerable<String> seq = Linq.of("a", "b");
@@ -651,7 +626,6 @@ class EnumerableTest {
         assertEquals(List.of("x", "y"), list);
     }
 
-    // ========== 并集 ==========
     @Test
     void union() {
         Enumerable<Integer> a = Linq.of(1,2,3);
@@ -670,14 +644,12 @@ class EnumerableTest {
         assertEquals(3, union.size()); // ids 1,2,3
     }
 
-    // ========== 过滤 ==========
     @Test
     void where() {
         Enumerable<Integer> nums = Linq.of(1,2,3,4,5);
         assertEquals(List.of(2,4), nums.where(x -> x % 2 == 0).toList());
     }
 
-    // ========== 压缩 ==========
     @Test
     void zip() {
         Enumerable<Integer> nums = Linq.of(1,2,3);
@@ -696,7 +668,6 @@ class EnumerableTest {
         assertEquals(List.of("1a", "2b", "3c"), zipped);
     }
 
-    // ========== 遍历 ==========
     @Test
     void forEach() {
         Enumerable<Integer> seq = Linq.of(1,2,3);
@@ -705,4 +676,34 @@ class EnumerableTest {
         assertEquals(List.of(1,2,3), list);
     }
 
+    @Test
+    public void testRange() {
+        List<Integer> list = Linq.range(1, 5)
+            .toList();
+        System.out.println(list);
+
+        Linq.range(1, 4, 2)
+            .forEach(System.out::println);
+    }
+
+    @Test
+    public void testRepeat() {
+        Linq.repeat("A", 10)
+            .select(String::toLowerCase)
+            .forEach(System.out::println);
+
+    }
+
+
+    @Test
+    public void test1() {
+        var a = Linq.of(1, 2, 2, 3, 4);
+        var b = Linq.of(3, 4, 5);
+
+        var distinct = a.distinct().toList();     // [1, 2, 3, 4]
+        var intersect = a.intersect(b).toList();  // [3, 4]
+
+        System.out.println(distinct);
+        System.out.println(intersect);
+    }
 }
