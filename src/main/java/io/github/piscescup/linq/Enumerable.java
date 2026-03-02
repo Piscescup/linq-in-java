@@ -4,102 +4,100 @@ package io.github.piscescup.linq;
 import io.github.piscescup.interfaces.Pair;
 import io.github.piscescup.interfaces.exfunction.BinFunction;
 import io.github.piscescup.interfaces.exfunction.BinPredicate;
-import io.github.piscescup.linq.enumerable.Groupable;
-import io.github.piscescup.linq.operation.intermediate.AppendPrepend;
+import io.github.piscescup.linq.operation.intermediate.*;
 import io.github.piscescup.linq.operation.terminal.*;
+import io.github.piscescup.util.validation.NullCheck;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.function.*;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+
 /**
- * <p>
- *     Language-Integrated Query (LINQ) is the name for a set of technologies
- *     based on the integration of query capabilities directly into the {@code C# language}.
- * </p>
- * <p>
- *     This interface represents the core LINQ-like API for Java, inspired by C#'s IEnumerable<T>.
- * </p>
+ * Represents a LINQ-style queryable sequence of elements (similar to C# {@code IEnumerable<T>}).
+ *
+ * <p>This interface is the core abstraction of the library. It supports a pull-based iteration model
+ * via {@link #enumerator()}, and provides fluent query operators such as filtering, projection, ordering,
+ * grouping, joining, set operations, and aggregations.</p>
  *
  * <h2>Execution model</h2>
  * <ul>
- *   <li><b>Deferred (lazy) by default</b>: most intermediate operations (e.g. {@code where/select/orderBy})
- *       should not traverse the source until enumeration begins.</li>
- *   <li><b>Fresh enumerator</b>: {@link #enumerator()} must return a new enumerator starting before the first element.</li>
- *   <li><b>Multiple enumeration</b>: whether repeated enumeration yields the same results depends on the underlying source.</li>
- *   <li><b>Null policy</b>: unless annotated otherwise, passing {@code null} for functional parameters/comparators
- *       is rejected with {@link NullPointerException}.</li>
+ *   <li><b>Deferred execution:</b> most intermediate operations (e.g. {@code where}, {@code select}, {@code orderBy})
+ *       are expected to be lazy. The source is not traversed until enumeration begins.</li>
+ *   <li><b>Fresh enumerator:</b> each call to {@link #enumerator()} must return a new enumerator positioned
+ *       before the first element.</li>
+ *   <li><b>Multiple enumeration:</b> repeated enumeration may or may not yield identical results, depending on
+ *       the underlying data source.</li>
+ *   <li><b>Null policy:</b> unless explicitly documented otherwise (or annotated {@link Nullable}),
+ *       {@code null} functional parameters and comparators are rejected (typically with {@link NullPointerException}).</li>
  * </ul>
  *
- * <h2>Quick example</h2>
- * <pre>{@code
- * Enumerable<Integer> ints = Enumerable.of(1, 2, 3, 4, 5);
+ * <h2>Examples</h2>
  *
- * List<Integer> evensDoubled = ints
- *     .where(x -> x % 2 == 0)
- *     .select(x -> x * 2)
- *     .toList(); // [4, 8]
+ * <h3>Filtering and projection</h3>
+ * <pre>{@code
+ * Enumerable<Integer> numbers = Enumerable.of(1, 2, 3, 4, 5);
+ * List<Integer> result = numbers
+ *     .where(n -> n % 2 == 0)
+ *     .select(n -> n * 10)
+ *     .toList();
+ * // result = [20, 40]
  * }</pre>
  *
+ * <h3>Grouping</h3>
  * <pre>{@code
- * record Person(String name, int age) {
- *     @Override
- *     public String toString() {
- *         return name + " (" + age + " years)";
- *     }
- * }
- *
+ * record Person(String name, int age) {}
  * Enumerable<Person> people = Enumerable.of(
- *     new Person("Alice", 30),
- *     new Person("Bob", 25),
- *     new Person("Charlie", 35),
- *     new Person("Diana", 12),
- *     new Person("Eve", 22),
- *     new Person("Frank", 40),
- *     new Person("Grace", 5)
+ *     new Person("Alice", 20),
+ *     new Person("Bob", 18),
+ *     new Person("Cindy", 20)
  * );
  *
- * List<Person> adult = people
- *     .where(p -> p.age() >= 18)
- *     .toList()
- *     .forEach(System.out::println);
- * // Output:
- * // Alice (30 years)
- * // Bob (25 years)
- * // Charlie (35 years)
- * // Eve (22 years)
- * // Frank (40 years)
+ * List<Pair<Integer, Long>> grouped =
+ *     people.countBy(Person::age, Comparator.naturalOrder()).toList();
  * }</pre>
  *
- * @param <T> element type of the sequence
+ * <h3>Join</h3>
+ * <pre>{@code
+ * record User(int id, String name) {}
+ * record Order(int userId, String item) {}
+ *
+ * Enumerable<User> users = Enumerable.of(new User(1, "Alice"), new User(2, "Bob"));
+ * Enumerable<Order> orders = Enumerable.of(new Order(1, "Book"), new Order(1, "Pen"));
+ *
+ * List<String> lines = users.join(
+ *     orders,
+ *     User::id,
+ *     Order::userId,
+ *     (u, o) -> u.name() + " bought " + o.item()
+ * ).toList();
+ * }</pre>
+ *
+ * @param <T> the element type of the sequence
  * @author Ren YuanTong
  * @since 1.0.0
  */
 public interface Enumerable<T> extends Iterable<T> {
 
     /**
-     * Creates a new enumerator for iterating this sequence.
+     * Returns a new enumerator that iterates over this sequence.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Each call returns a <b>fresh</b> enumerator positioned before the first element.</li>
-     *   <li>Enumeration order matches this sequence's order.</li>
-     * </ul>
+     * <p>Each invocation must return a <b>fresh</b> enumerator instance positioned before the first element.</p>
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>If the underlying source is empty, the enumerator simply yields no elements.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(1) (typical). Space: O(1).</p>
+     * <p>Typical usage:</p>
+     * <pre>{@code
+     * try (Enumerator<T> e = enumerable.enumerator()) {
+     *     while (e.moveNext()) {
+     *         T x = e.current();
+     *         // ...
+     *     }
+     * }
+     * }</pre>
      *
      * @return a new {@link Enumerator} for this sequence
      * @throws RuntimeException if the underlying source cannot create an enumerator (implementation-defined)
@@ -107,31 +105,40 @@ public interface Enumerable<T> extends Iterable<T> {
     Enumerator<T> enumerator();
 
     /**
+     * Returns an iterator over the elements in this sequence.
+     *
+     * <p>This default implementation delegates to {@link #enumerator()}.</p>
+     *
+     * @return an iterator over the elements in this sequence
+     */
+    @Override
+    @NotNull
+    default Iterator<T> iterator() {
+        return enumerator();
+    }
+
+    /**
      * Aggregates the sequence into an accumulator of type {@code A}, then maps the final accumulator to {@code R}.
-     * This is the "seed + aggregator + resultSelector" overload.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Starts with {@code identity}.</li>
-     *   <li>For each element {@code x}: {@code acc = aggregator.apply(acc, x)}.</li>
-     *   <li>Returns {@code resultSelector.apply(acc)} after the last element.</li>
-     *   <li>If the sequence is empty, returns {@code resultSelector.apply(identity)}.</li>
-     * </ul>
+     * <p>Starts with {@code identity}. For each element {@code x}:
+     * {@code acc = aggregator.apply(acc, x)}. After enumeration, returns
+     * {@code resultSelector.apply(acc)}.</p>
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>{@code identity} may be {@code null} if your accumulator model allows it.</li>
-     * </ul>
+     * <h3>Example</h3>
+     * <pre>{@code
+     * String joined = words.aggregate(
+     *     new StringBuilder(),
+     *     (sb, w) -> sb.append(w).append(","),
+     *     StringBuilder::toString
+     * );
+     * }</pre>
      *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1) (excluding user accumulator allocations).</p>
-     *
-     * @param identity initial accumulator value
-     * @param aggregator combines accumulator and element to produce a new accumulator
-     * @param resultSelector maps final accumulator to result
-     * @param <A> accumulator type
-     * @param <R> final result type
-     * @return aggregated result
+     * @param identity the initial accumulator value
+     * @param aggregator combines the current accumulator and an element into a new accumulator
+     * @param resultSelector maps the final accumulator to the result
+     * @param <A> the accumulator type
+     * @param <R> the result type
+     * @return the aggregated result
      * @throws NullPointerException if {@code aggregator} or {@code resultSelector} is {@code null}
      * @throws RuntimeException if enumeration fails or any supplied function throws
      */
@@ -146,30 +153,22 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Aggregates the sequence starting from {@code seed}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Starts with {@code seed} as the accumulator.</li>
-     *   <li>For each element {@code x}: {@code acc = aggregator.apply(acc, x)}.</li>
-     *   <li>Returns the final accumulator.</li>
-     *   <li>If the sequence is empty, returns {@code seed}.</li>
-     * </ul>
+     * <p>Starts with {@code seed}. For each element {@code x}:
+     * {@code acc = aggregator.apply(acc, x)}. Returns the final accumulator.</p>
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>{@code seed} may be {@code null} if your accumulator model allows it.</li>
-     * </ul>
+     * <h3>Example</h3>
+     * <pre>{@code
+     * int sum = numbers.aggregate(0, (acc, x) -> acc + x);
+     * }</pre>
      *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1).</p>
-     *
-     * @param seed initial accumulator value
-     * @param aggregator combines accumulator and element to produce a new accumulator
-     * @param <R> accumulator (and return) type
-     * @return final accumulator value
+     * @param seed the initial accumulator value
+     * @param aggregator combines the current accumulator and an element into a new accumulator
+     * @param <R> the accumulator (and return) type
+     * @return the final accumulator value
      * @throws NullPointerException if {@code aggregator} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code aggregator} throws
      */
-    default  <R> R aggregate(
+    default <R> R aggregate(
         R seed,
         BinFunction<? super R, ? super T, ? extends R> aggregator
     ) {
@@ -179,122 +178,114 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Aggregates the sequence without an explicit seed (typically uses the first element as the seed).
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Typical implementation: uses the first element as initial accumulator.</li>
-     *   <li>Then folds remaining elements: {@code acc = aggregator.apply(acc, x)}.</li>
-     * </ul>
+     * <p>Typical semantics: uses the first element as the initial accumulator, then combines remaining elements
+     * using {@code aggregator}.</p>
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>If the sequence is empty, typical behavior is to throw {@link java.util.NoSuchElementException}
-     *       (implementation-defined).</li>
-     * </ul>
+     * <h3>Example</h3>
+     * <pre>{@code
+     * int max = numbers.aggregate((a, b) -> Math.max(a, b));
+     * }</pre>
      *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1).</p>
-     *
-     * @param aggregator combines accumulator and element
-     * @param <R> accumulator (and return) type
-     * @return aggregation result
+     * @param aggregator combines the current accumulator and an element into a new accumulator
+     * @return the aggregation result
      * @throws NullPointerException if {@code aggregator} is {@code null}
-     * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
+     * @throws NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or {@code aggregator} throws
      */
-    T aggregate(
+    default T aggregate(
         BinFunction<? super T, ? super T, ? extends T> aggregator
-    );
+    ) {
+        return Aggregate.aggregate(this, aggregator);
+    }
 
     /**
-     * Aggregates elements grouped by key, producing pairs of (key, aggregatedValue).
+     * Aggregates elements grouped by key, producing pairs of {@code (key, aggregatedValue)}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>For each element {@code x}, compute key {@code k = keyExtractor.apply(x)}.</li>
-     *   <li>If {@code k} is new, initialize group value as {@code keyMapping.apply(k)}.</li>
-     *   <li>Update group value: {@code acc = resultMapping.apply(acc, x)}.</li>
-     *   <li>After traversal completes, yields one pair per distinct key.</li>
-     *   <li>Result ordering is implementation-defined; commonly comparator order if a sorted-map strategy is used.</li>
-     * </ul>
+     * <p>For each element {@code x}, the key is {@code keyExtractor.apply(x)}. If the key is new, initializes
+     * the per-key accumulator as {@code keyMapping.apply(key)}. Then updates it with
+     * {@code resultMapping.apply(acc, x)}. After enumeration, returns one pair per distinct key.</p>
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty sequence yields an empty result.</li>
-     *   <li>Whether {@code null} keys are supported is implementation-defined (depends on map strategy).</li>
-     * </ul>
+     * <h3>Example</h3>
+     * <pre>{@code
+     * // Sum scores by userId
+     * Enumerable<Pair<Integer, Integer>> sums = rows.aggregateBy(
+     *     Row::userId,
+     *     id -> 0,
+     *     (acc, row) -> acc + row.score(),
+     *     Comparator.naturalOrder()
+     * );
+     * }</pre>
      *
-     * <h3>Complexity</h3>
-     * <p>Typical hash-based: Time O(n), Space O(k).</p>
-     * <p>Typical sorted/tree-based: Time O(n log k), Space O(k).</p>
-     *
-     * @param keyExtractor extracts the group key
-     * @param keyMapping maps key to initial group value
-     * @param resultMapping updates group value with an element
-     * @param comparator key comparator (ordering / map strategy)
-     * @param <K> key type
-     * @param <R> aggregated value type
-     * @return sequence of (key, aggregatedValue) pairs
+     * @param keyExtractor extracts the grouping key from each element
+     * @param keyMapping maps a key to the initial accumulator value for that key
+     * @param resultMapping updates the accumulator for a key given the current element
+     * @param comparator comparator for keys (also determines map strategy / ordering depending on implementation)
+     * @param <K> the key type
+     * @param <R> the per-key accumulator / aggregated value type
+     * @return a sequence of {@code (key, aggregatedValue)} pairs
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or any supplied function/comparator throws
      */
-    <K, R> Enumerable<Pair<K, R>> aggregateBy(
+    default <K, R> Enumerable<Pair<K, R>> aggregateBy(
         Function<? super T, ? extends K> keyExtractor,
         Function<? super K, ? extends R> keyMapping,
         BinFunction<? super R, ? super T, ? extends R> resultMapping,
         Comparator<? super K> comparator
-    );
+    ) {
+        return AggregateBy.aggregateBy(
+            this, keyExtractor, keyMapping, resultMapping, comparator
+        );
+    }
 
     /**
-     * Aggregates elements grouped by key with a constant seed for each key.
+     * Aggregates elements grouped by key using a constant seed for each key.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>For each element {@code x}, compute {@code k = keyExtractor.apply(x)}.</li>
-     *   <li>If {@code k} is new, initialize group value to {@code seed} (or a per-key copy if implemented).</li>
-     *   <li>Update group value: {@code acc = resultMapping.apply(acc, x)}.</li>
-     *   <li>After traversal completes, yields one pair per distinct key.</li>
-     * </ul>
+     * <p>For each element {@code x}, the key is {@code keyExtractor.apply(x)}. If the key is new, initializes
+     * the per-key accumulator to {@code seed} (sharing/copying semantics are implementation-defined).
+     * Then updates it with {@code resultMapping.apply(acc, x)}. After enumeration, returns one pair per key.</p>
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty sequence yields an empty result.</li>
-     *   <li>If {@code seed} is mutable, sharing the same instance among keys may be surprising; implementation-defined.</li>
-     * </ul>
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Pair<String, StringBuilder>> builders = words.aggregateBy(
+     *     String::substring, // example key extractor
+     *     new StringBuilder(),
+     *     (sb, w) -> sb.append(w).append(' '),
+     *     Comparator.naturalOrder()
+     * );
+     * }</pre>
      *
-     * <h3>Complexity</h3>
-     * <p>Typical hash-based: Time O(n), Space O(k). Sorted/tree-based: Time O(n log k), Space O(k).</p>
-     *
-     * @param seed initial group value for each key
-     * @param keyExtractor extracts the group key
-     * @param resultMapping updates group value with an element
-     * @param comparator key comparator
-     * @param <K> key type
-     * @param <R> group value type
-     * @return sequence of (key, aggregatedValue) pairs
+     * @param seed the initial accumulator value used for each new key
+     * @param keyExtractor extracts the grouping key from each element
+     * @param resultMapping updates the accumulator for a key given the current element
+     * @param comparator comparator for keys
+     * @param <K> the key type
+     * @param <R> the per-key accumulator / aggregated value type
+     * @return a sequence of {@code (key, aggregatedValue)} pairs
      * @throws NullPointerException if {@code keyExtractor}, {@code resultMapping}, or {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or any supplied function/comparator throws
      */
-    <K, R> Enumerable<Pair<K, R>> aggregateBy(
+    default <K, R> Enumerable<Pair<K, R>> aggregateBy(
         R seed,
         Function<? super T, ? extends K> keyExtractor,
         BinFunction<? super R, ? super T, ? extends R> resultMapping,
         Comparator<? super K> comparator
-    );
+    ) {
+        return AggregateBy.aggregateBy(this, seed, keyExtractor, resultMapping, comparator);
+    }
 
     /**
      * Returns {@code true} if all elements satisfy the predicate.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Short-circuits on the first element that does not satisfy {@code predicate}.</li>
-     *   <li>Empty sequence returns {@code true}.</li>
-     * </ul>
+     * <p>The predicate is evaluated until a non-matching element is found. If the sequence is empty,
+     * this method returns {@code true}.</p>
      *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n) worst-case, O(1) best-case. Space: O(1).</p>
+     * <h3>Example</h3>
+     * <pre>{@code
+     * boolean allPositive = numbers.all(x -> x > 0);
+     * }</pre>
      *
-     * @param predicate test to apply to each element
-     * @return whether all elements match
+     * @param predicate the predicate to apply to each element
+     * @return {@code true} if all elements satisfy the predicate; {@code true} for an empty sequence
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code predicate} throws
      */
@@ -305,17 +296,16 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns {@code true} if any element satisfies the predicate.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Short-circuits on the first element that satisfies {@code predicate}.</li>
-     *   <li>Empty sequence returns {@code false}.</li>
-     * </ul>
+     * <p>The predicate is evaluated until a matching element is found. If the sequence is empty,
+     * this method returns {@code false}.</p>
      *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n) worst-case, O(1) best-case. Space: O(1).</p>
+     * <h3>Example</h3>
+     * <pre>{@code
+     * boolean hasNull = seq.any(Objects::isNull);
+     * }</pre>
      *
-     * @param predicate test to apply
-     * @return whether any element matches
+     * @param predicate the predicate to apply to elements
+     * @return {@code true} if any element satisfies the predicate; {@code false} for an empty sequence
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code predicate} throws
      */
@@ -324,23 +314,14 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Appends a single element to the end of this sequence.
+     * Returns a sequence that yields all elements of this sequence followed by {@code element}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Returns a new sequence that yields all elements of this sequence, then yields {@code element}.</li>
-     *   <li>Typically lazy: enumeration of the new sequence drives enumeration of the source.</li>
-     * </ul>
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> withTail = nums.append(99);
+     * }</pre>
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>{@code element} may be {@code null} if the sequence supports nulls.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Creation: O(1). Enumeration: O(n + 1). Extra space: O(1).</p>
-     *
-     * @param element element to append
+     * @param element the element to append
      * @return a new sequence ending with {@code element}
      * @throws RuntimeException if the new sequence cannot be created (implementation-defined)
      */
@@ -349,84 +330,228 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Returns this sequence as an {@link Enumerable}. Useful when adapting types or returning self.
+     * Returns this instance as an {@link Enumerable}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>May return {@code this} directly, or a lightweight wrapper.</li>
-     * </ul>
+     * <p>This is mostly useful for fluent APIs and adaptation points.</p>
      *
-     * <h3>Complexity</h3>
-     * <p>Time: O(1). Space: O(1).</p>
-     *
-     * @return this sequence (or an equivalent enumerable)
+     * @return this sequence as an {@link Enumerable}
      * @throws RuntimeException if adaptation fails (implementation-defined)
      */
+    @SuppressWarnings("unchecked")
     default Enumerable<T> toEnumerable() {
         return (Enumerable<T>) this;
     }
 
+    /**
+     * Computes the arithmetic mean of {@link Integer} values in this sequence, ignoring {@code null} elements.
+     *
+     * <p><b>Type requirement:</b> this method is only valid when this sequence is actually an
+     * {@code Enumerable<Integer>}. Otherwise, a {@link ClassCastException} may occur.</p>
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> numbers = Enumerable.of(1, 2, null, 3);
+     * double avg = numbers.intAverageNullable(); // 2.0
+     * }</pre>
+     *
+     * @return the average of all non-null elements
+     * @throws IllegalArgumentException if the sequence contains no non-null elements
+     * @throws ClassCastException if this sequence is not an {@code Enumerable<Integer>}
+     * @since 1.0.0
+     */
+    @SuppressWarnings("unchecked")
     default double intAverageNullable() {
         return Average.intAverageNullable((Enumerable<Integer>) this);
     }
 
+    /**
+     * Computes the arithmetic mean of {@link Integer} values in this sequence, assuming no element is {@code null}.
+     *
+     * <p><b>Type requirement:</b> this method is only valid when this sequence is actually an
+     * {@code Enumerable<Integer>}. Otherwise, a {@link ClassCastException} may occur.</p>
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> numbers = Enumerable.of(1, 2, 3);
+     * double avg = numbers.intAverageNonNull(); // 2.0
+     * }</pre>
+     *
+     * @return the average of all elements
+     * @throws NullPointerException if any element is {@code null}
+     * @throws IllegalArgumentException if the sequence is empty
+     * @throws ClassCastException if this sequence is not an {@code Enumerable<Integer>}
+     * @since 1.0.0
+     */
+    @SuppressWarnings("unchecked")
     default double intAverageNonNull() {
         return Average.intAverageNonNull((Enumerable<Integer>) this);
     }
 
+    /**
+     * Computes the arithmetic mean of {@link Long} values in this sequence, ignoring {@code null} elements.
+     *
+     * <p><b>Type requirement:</b> this method is only valid when this sequence is actually an
+     * {@code Enumerable<Long>}. Otherwise, a {@link ClassCastException} may occur.</p>
+     *
+     * @return the average of all non-null elements
+     * @throws IllegalArgumentException if the sequence contains no non-null elements
+     * @throws ClassCastException if this sequence is not an {@code Enumerable<Long>}
+     * @since 1.0.0
+     */
+    @SuppressWarnings("unchecked")
     default double longAverageNullable() {
         return Average.longAverageNullable((Enumerable<Long>) this);
     }
 
+    /**
+     * Computes the arithmetic mean of {@link Long} values in this sequence, assuming no element is {@code null}.
+     *
+     * <p><b>Type requirement:</b> this method is only valid when this sequence is actually an
+     * {@code Enumerable<Long>}. Otherwise, a {@link ClassCastException} may occur.</p>
+     *
+     * @return the average of all elements
+     * @throws NullPointerException if any element is {@code null}
+     * @throws IllegalArgumentException if the sequence is empty
+     * @throws ClassCastException if this sequence is not an {@code Enumerable<Long>}
+     * @since 1.0.0
+     */
+    @SuppressWarnings("unchecked")
     default double longAverageNonNull() {
         return Average.longAverageNonNull((Enumerable<Long>) this);
     }
 
+    /**
+     * Computes the arithmetic mean of {@link Double} values in this sequence, ignoring {@code null} elements.
+     *
+     * <p><b>Type requirement:</b> this method is only valid when this sequence is actually an
+     * {@code Enumerable<Double>}. Otherwise, a {@link ClassCastException} may occur.</p>
+     *
+     * @return the average of all non-null elements
+     * @throws IllegalArgumentException if the sequence contains no non-null elements
+     * @throws ClassCastException if this sequence is not an {@code Enumerable<Double>}
+     * @since 1.0.0
+     */
+    @SuppressWarnings("unchecked")
     default double doubleAverageNullable() {
         return Average.doubleAverageNullable((Enumerable<Double>) this);
     }
 
+    /**
+     * Computes the arithmetic mean of {@link Double} values in this sequence, assuming no element is {@code null}.
+     *
+     * <p><b>Type requirement:</b> this method is only valid when this sequence is actually an
+     * {@code Enumerable<Double>}. Otherwise, a {@link ClassCastException} may occur.</p>
+     *
+     * @return the average of all elements
+     * @throws NullPointerException if any element is {@code null}
+     * @throws IllegalArgumentException if the sequence is empty
+     * @throws ClassCastException if this sequence is not an {@code Enumerable<Double>}
+     * @since 1.0.0
+     */
+    @SuppressWarnings("unchecked")
     default double doubleAverageNonNull() {
         return Average.doubleAverageNonNull((Enumerable<Double>) this);
     }
 
+    /**
+     * Computes the arithmetic mean of {@link Float} values in this sequence, ignoring {@code null} elements.
+     *
+     * <p>The result is returned as {@code double}.</p>
+     *
+     * <p><b>Type requirement:</b> this method is only valid when this sequence is actually an
+     * {@code Enumerable<Float>}. Otherwise, a {@link ClassCastException} may occur.</p>
+     *
+     * @return the average of all non-null elements
+     * @throws IllegalArgumentException if the sequence contains no non-null elements
+     * @throws ClassCastException if this sequence is not an {@code Enumerable<Float>}
+     * @since 1.0.0
+     */
+    @SuppressWarnings("unchecked")
     default double floatAverageNullable() {
         return Average.floatAverageNullable((Enumerable<Float>) this);
     }
 
+    /**
+     * Computes the arithmetic mean of {@link Float} values in this sequence, assuming no element is {@code null}.
+     *
+     * <p>The result is returned as {@code double}.</p>
+     *
+     * <p><b>Type requirement:</b> this method is only valid when this sequence is actually an
+     * {@code Enumerable<Float>}. Otherwise, a {@link ClassCastException} may occur.</p>
+     *
+     * @return the average of all elements
+     * @throws NullPointerException if any element is {@code null}
+     * @throws IllegalArgumentException if the sequence is empty
+     * @throws ClassCastException if this sequence is not an {@code Enumerable<Float>}
+     * @since 1.0.0
+     */
+    @SuppressWarnings("unchecked")
     default double floatAverageNonNull() {
         return Average.floatAverageNonNull((Enumerable<Float>) this);
     }
 
+    /**
+     * Computes the arithmetic mean of {@link BigDecimal} values in this sequence, ignoring {@code null} elements,
+     * using the provided {@link MathContext}.
+     *
+     * <p><b>Type requirement:</b> this method is only valid when this sequence is actually an
+     * {@code Enumerable<BigDecimal>}. Otherwise, a {@link ClassCastException} may occur.</p>
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<BigDecimal> values = Enumerable.of(
+     *     new BigDecimal("1.0"),
+     *     null,
+     *     new BigDecimal("2.0")
+     * );
+     * BigDecimal avg = values.decimalAverageNullable(MathContext.DECIMAL64); // 1.5
+     * }</pre>
+     *
+     * @param context the math context used for division (precision/rounding)
+     * @return the average of all non-null elements
+     * @throws NullPointerException if {@code context} is {@code null}
+     * @throws IllegalArgumentException if the sequence contains no non-null elements
+     * @throws ClassCastException if this sequence is not an {@code Enumerable<BigDecimal>}
+     * @since 1.0.0
+     */
+    @SuppressWarnings("unchecked")
     default BigDecimal decimalAverageNullable(MathContext context) {
-        return Average.decimalAverageNullable((Enumerable<java.math.BigDecimal>) this, context);
-    }
-
-    default BigDecimal decimalAverageNonNull(MathContext context) {
-        return Average.decimalAverageNonNull((Enumerable<java.math.BigDecimal>) this, context);
+        NullCheck.requireNonNull(context, "context");
+        return Average.decimalAverageNullable((Enumerable<BigDecimal>) this, context);
     }
 
     /**
-     * Computes the average using a double mapping.
+     * Computes the arithmetic mean of {@link BigDecimal} values in this sequence, assuming no element is {@code null},
+     * using the provided {@link MathContext}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Projects each element using {@code doubleMapping} and returns the arithmetic mean.</li>
-     * </ul>
+     * <p><b>Type requirement:</b> this method is only valid when this sequence is actually an
+     * {@code Enumerable<BigDecimal>}. Otherwise, a {@link ClassCastException} may occur.</p>
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Typical behavior for empty sequence is to throw {@link java.util.NoSuchElementException}
-     *       (implementation-defined).</li>
-     * </ul>
+     * @param context the math context used for division (precision/rounding)
+     * @return the average of all elements
+     * @throws NullPointerException if {@code context} is {@code null} or any element is {@code null}
+     * @throws IllegalArgumentException if the sequence is empty
+     * @throws ClassCastException if this sequence is not an {@code Enumerable<BigDecimal>}
+     * @since 1.0.0
+     */
+    @SuppressWarnings("unchecked")
+    default BigDecimal decimalAverageNonNull(MathContext context) {
+        NullCheck.requireNonNull(context, "context");
+        return Average.decimalAverageNonNull((Enumerable<BigDecimal>) this, context);
+    }
+
+    /**
+     * Computes the average by projecting each element to a {@code double}.
      *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1).</p>
+     * <h3>Example</h3>
+     * <pre>{@code
+     * double avgAge = people.average(Person::age);
+     * }</pre>
      *
-     * @param doubleMapping mapping from elements to double values
-     * @return average of projected values
+     * @param doubleMapping mapping from elements to {@code double} values
+     * @return the average of projected values
      * @throws NullPointerException if {@code doubleMapping} is {@code null}
-     * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
+     * @throws NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or {@code doubleMapping} throws
      */
     default double average(ToDoubleFunction<? super T> doubleMapping) {
@@ -434,26 +559,12 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Computes the average using an int mapping.
+     * Computes the average by projecting each element to an {@code int} (returned as {@code double}).
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Projects each element using {@code intMapping} and returns the arithmetic mean as {@code double}.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Typical behavior for empty sequence is to throw {@link java.util.NoSuchElementException}
-     *       (implementation-defined).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1).</p>
-     *
-     * @param intMapping mapping from elements to int values
-     * @return average of projected values as {@code double}
+     * @param intMapping mapping from elements to {@code int} values
+     * @return the average of projected values
      * @throws NullPointerException if {@code intMapping} is {@code null}
-     * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
+     * @throws NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or {@code intMapping} throws
      */
     default double average(ToIntFunction<? super T> intMapping) {
@@ -461,26 +572,12 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Computes the average using a long mapping.
+     * Computes the average by projecting each element to a {@code long} (returned as {@code double}).
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Projects each element using {@code longMapping} and returns the arithmetic mean as {@code double}.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Typical behavior for empty sequence is to throw {@link java.util.NoSuchElementException}
-     *       (implementation-defined).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1).</p>
-     *
-     * @param longMapping mapping from elements to long values
-     * @return average of projected values as {@code double}
+     * @param longMapping mapping from elements to {@code long} values
+     * @return the average of projected values
      * @throws NullPointerException if {@code longMapping} is {@code null}
-     * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
+     * @throws NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or {@code longMapping} throws
      */
     default double average(ToLongFunction<? super T> longMapping) {
@@ -488,75 +585,62 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Splits the sequence into arrays of size {@code size} (last chunk may be smaller).
+     * Splits the sequence into arrays of size {@code size}. The last chunk may be smaller.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Preserves original order within chunks and across chunks.</li>
-     *   <li>Typical implementation buffers up to {@code size} elements at a time.</li>
-     * </ul>
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer[]> chunks = nums.chunk(3);
+     * }</pre>
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>{@code size <= 0} is invalid.</li>
-     *   <li>Empty sequence yields an empty sequence of chunks.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Extra space: O(size) buffering (typical).</p>
-     *
-     * @param size chunk size (must be positive)
-     * @return chunked sequence
+     * @param size the chunk size (must be positive)
+     * @return a sequence of chunks
      * @throws IllegalArgumentException if {@code size <= 0}
      * @throws RuntimeException if chunking cannot be performed (implementation-defined)
      */
-    Enumerable<T[]> chunk(int size);
+    default Enumerable<T[]> chunk(int size) {
+        return Chunk.chunk(this, size);
+    }
+
+    /**
+     * Splits the sequence into chunks (lists) of size {@code size}. The last chunk may be smaller.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<List<Integer>> chunks = nums.chunkAsList(2);
+     * }</pre>
+     *
+     * @param size the chunk size (must be positive)
+     * @return a sequence of lists, each representing a chunk
+     * @throws NullPointerException if this sequence is {@code null} (not typical in instance context)
+     * @throws IllegalArgumentException if {@code size <= 0}
+     * @throws RuntimeException if chunking cannot be performed (implementation-defined)
+     */
+    default Enumerable<List<T>> chunkAsList(int size) {
+        return Chunk.chunkAsList(this, size);
+    }
 
     /**
      * Concatenates this sequence with {@code other}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Yields all elements from this sequence, then all elements from {@code other}.</li>
-     *   <li>Typically lazy.</li>
-     * </ul>
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> all = a.concat(b);
+     * }</pre>
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>If either sequence is empty, the result is effectively the other sequence.</li>
-     *   <li>Null {@code other} is invalid.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Creation: O(1). Enumeration: O(n + m). Extra space: O(1).</p>
-     *
-     * @param other sequence to append
-     * @return concatenated sequence
+     * @param other the sequence to append
+     * @return a sequence that yields elements from this sequence, then {@code other}
      * @throws NullPointerException if {@code other} is {@code null}
      * @throws RuntimeException if enumeration fails in either sequence
      */
-    Enumerable<T> concat(Enumerable<? extends T> other);
+    default Enumerable<T> concat(Enumerable<? extends T> other) {
+        return Concat.concat(this, other);
+    }
 
     /**
      * Returns whether the sequence contains an element equal to {@code element}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Typical equality uses {@link Object#equals(Object)}.</li>
-     *   <li>Short-circuits on the first match.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>{@code element} may be {@code null} if the sequence supports nulls; comparison semantics are
-     *       implementation-defined but typically treat {@code null} as a valid value.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n) worst-case, O(1) best-case. Space: O(1).</p>
-     *
-     * @param element element to search for
-     * @return whether contained
+     * @param element the element to search for (may be {@code null} depending on sequence semantics)
+     * @return {@code true} if the sequence contains the element
      * @throws RuntimeException if enumeration fails
      */
     default boolean contains(T element) {
@@ -564,25 +648,13 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Returns whether the sequence contains an element using a comparator-defined equality.
+     * Returns whether the sequence contains an element equal to {@code element}, using comparator-defined equality.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Defines equality as {@code comparator.compare(a, element) == 0}.</li>
-     *   <li>Short-circuits on the first match.</li>
-     * </ul>
+     * <p>Equality is defined as {@code comparator.compare(a, element) == 0}.</p>
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>{@code comparator} must be consistent with the desired equality semantics.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n) worst-case. Space: O(1).</p>
-     *
-     * @param element element to search for
+     * @param element the element to search for
      * @param comparator comparator defining equality
-     * @return whether contained
+     * @return {@code true} if any element is considered equal to {@code element} by the comparator
      * @throws NullPointerException if {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code comparator} throws
      */
@@ -592,15 +664,6 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Counts all elements in the sequence.
-     *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Enumerates the entire sequence to compute the count.</li>
-     *   <li>For infinite sequences, this method does not terminate (implementation-defined if guarded).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1).</p>
      *
      * @return number of elements
      * @throws RuntimeException if enumeration fails
@@ -612,20 +675,7 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Counts elements matching a predicate.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Enumerates the entire sequence and counts elements where {@code predicate.test(x)} is {@code true}.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>For infinite sequences, this method does not terminate (implementation-defined if guarded).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1).</p>
-     *
-     * @param predicate predicate to test
+     * @param predicate predicate to test elements
      * @return number of matching elements
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code predicate} throws
@@ -635,56 +685,36 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Counts elements by key, producing pairs of (key, count).
+     * Counts elements by key, producing pairs {@code (key, count)}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Key for element {@code x} is {@code keyExtractor.apply(x)}.</li>
-     *   <li>Accumulates counts per distinct key.</li>
-     *   <li>Result ordering is implementation-defined; commonly comparator order if sorted strategy is used.</li>
-     * </ul>
+     * <h3>Example</h3>
+     * <pre>{@code
+     * List<Pair<Character, Long>> freq = names
+     *     .selectMany(s -> Enumerable.of(s.chars().mapToObj(c -> (char)c).toArray(Character[]::new)))
+     *     .countBy(Function.identity(), Comparator.naturalOrder())
+     *     .toList();
+     * }</pre>
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty sequence yields an empty result.</li>
-     *   <li>Null keys may or may not be supported (implementation-defined).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical hash-based: Time O(n), Space O(k).</p>
-     * <p>Typical sorted/tree-based: Time O(n log k), Space O(k).</p>
-     *
-     * @param keyExtractor extracts key
-     * @param comparator key comparator (ordering / map strategy)
-     * @param <K> key type
-     * @return sequence of (key, count)
+     * @param keyExtractor extracts the key for each element
+     * @param comparator comparator for keys (may influence ordering / strategy)
+     * @param <K> the key type
+     * @return a sequence of {@code (key, count)} pairs
      * @throws NullPointerException if {@code keyExtractor} or {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or any supplied function/comparator throws
      */
-    <K> Enumerable<Pair<K, Long>> countBy(
+    default <K> Enumerable<Pair<K, Long>> countBy(
         Function<? super T, ? extends K> keyExtractor,
         Comparator<? super K> comparator
-    );
+    ) {
+        return CountBy.countBy(this, keyExtractor, comparator);
+    }
 
     /**
-     * Returns the default element for empty sequences, otherwise an implementation-defined element for non-empty.
+     * Returns a sequence that yields {@code defaultElement} if this sequence is empty; otherwise yields this sequence.
      *
-     * <h3>Behavior (recommended)</h3>
-     * <ul>
-     *   <li>If the sequence is empty, returns {@code null}.</li>
-     *   <li>Otherwise returns the first element.</li>
-     * </ul>
+     * <p>This overload uses {@code null} as the default element.</p>
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>If the sequence supports {@code null} values, a non-empty sequence may still return {@code null}
-     *       (e.g., first element is {@code null}).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(1) typical (needs at most the first element). Space: O(1).</p>
-     *
-     * @return default element for empty sequences, otherwise an element from the sequence
+     * @return a sequence that yields {@code null} if empty, otherwise yields original elements
      * @throws RuntimeException if enumeration fails
      */
     @Nullable
@@ -693,129 +723,80 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Returns {@code defaultElement} if the sequence is empty, otherwise an implementation-defined element
-     * for non-empty (recommended: the first element).
+     * Returns a sequence that yields {@code defaultElement} if this sequence is empty; otherwise yields this sequence.
      *
-     * <h3>Behavior (recommended)</h3>
-     * <ul>
-     *   <li>If empty: return {@code defaultElement}.</li>
-     *   <li>Otherwise: return first element.</li>
-     * </ul>
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> safe = seq.defaultIfEmpty("(none)");
+     * }</pre>
      *
-     * <h3>Complexity</h3>
-     * <p>Time: O(1) typical. Space: O(1).</p>
-     *
-     * @param defaultElement value returned when empty
-     * @return {@code defaultElement} if empty; otherwise an element from the sequence (recommended: first)
+     * @param defaultElement the element to yield if the sequence is empty
+     * @return a sequence that yields {@code defaultElement} if empty, otherwise yields original elements
      * @throws RuntimeException if enumeration fails
      */
     default Enumerable<T> defaultIfEmpty(T defaultElement) {
-        return null;
+        return DefaultIfEmpty.defaultIfEmpty(this, defaultElement);
     }
 
     /**
-     * Removes duplicates using element equality (no explicit comparator).
+     * Returns a sequence with duplicate elements removed using {@link Object#equals(Object)} / {@link Object#hashCode()}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Typical equality uses {@link Object#equals(Object)} and {@link Object#hashCode()}.</li>
-     *   <li>Typical behavior preserves the first occurrence order.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Null elements are typically supported if the underlying strategy supports them (implementation-defined).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical hash-based: Time O(n), Space O(n).</p>
-     *
-     * @return distinct sequence
+     * @return a distinct sequence
      * @throws RuntimeException if enumeration fails
      */
-    Enumerable<T> distinct();
+    default Enumerable<T> distinct() {
+        return Distinct.distinct(this);
+    }
 
     /**
-     * Removes duplicates using the provided comparator for equality semantics.
+     * Returns a sequence with duplicate elements removed using comparator-defined equality.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Equality is defined as {@code comparator.compare(a, b) == 0}.</li>
-     *   <li>Ordering of the resulting distinct sequence is implementation-defined.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical sorted strategy: Time O(n log n) (or O(n log k)), Space O(k).</p>
+     * <p>Equality is defined as {@code comparator.compare(a, b) == 0}.</p>
      *
      * @param comparator comparator defining equality
-     * @return distinct sequence
+     * @return a distinct sequence
      * @throws NullPointerException if {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code comparator} throws
      */
-    Enumerable<T> distinct(Comparator<? super T> comparator);
+    default Enumerable<T> distinct(Comparator<? super T> comparator) {
+        return Distinct.distinct(this, comparator);
+    }
 
     /**
-     * Removes duplicates by extracted key (no explicit comparator for keys).
+     * Returns a sequence with duplicate elements removed by extracted key using key equality
+     * ({@link Object#equals(Object)} / {@link Object#hashCode()}).
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Key for element {@code x} is {@code keyExtractor.apply(x)}.</li>
-     *   <li>Typical key equality uses {@link Object#equals(Object)} and {@link Object#hashCode()}.</li>
-     *   <li>Typically preserves first occurrence order.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical hash-based: Time O(n), Space O(k).</p>
-     *
-     * @param keyExtractor extracts key
-     * @param <K> key type
-     * @return distinct-by-key sequence
+     * @param keyExtractor extracts the key for each element
+     * @param <K> the key type
+     * @return a distinct-by-key sequence
      * @throws NullPointerException if {@code keyExtractor} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code keyExtractor} throws
      */
-    <K> Enumerable<T> distinctBy(Function<? super T, ? extends K> keyExtractor);
+    default <K> Enumerable<T> distinctBy(Function<? super T, ? extends K> keyExtractor) {
+        return Distinct.distinctBy(this, keyExtractor);
+    }
 
     /**
-     * Removes duplicates by extracted key using a key comparator.
+     * Returns a sequence with duplicate elements removed by extracted key using comparator-defined key equality.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Key for element {@code x} is {@code keyExtractor.apply(x)}.</li>
-     *   <li>Key equality is {@code comparator.compare(k1, k2) == 0}.</li>
-     *   <li>Ordering of the result is implementation-defined (often comparator order if tree-based).</li>
-     * </ul>
+     * <p>Key equality is defined as {@code comparator.compare(k1, k2) == 0}.</p>
      *
-     * <h3>Complexity</h3>
-     * <p>Typical sorted/tree-based: Time O(n log k), Space O(k).</p>
-     *
-     * @param keyExtractor extracts key
-     * @param comparator key comparator defining equality
-     * @param <K> key type
-     * @return distinct-by-key sequence
+     * @param keyExtractor extracts the key for each element
+     * @param comparator comparator defining key equality
+     * @param <K> the key type
+     * @return a distinct-by-key sequence
      * @throws NullPointerException if {@code keyExtractor} or {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    <K> Enumerable<T> distinctBy(
+    default <K> Enumerable<T> distinctBy(
         Function<? super T, ? extends K> keyExtractor,
         Comparator<? super K> comparator
-    );
+    ) {
+        return Distinct.distinctBy(this, keyExtractor, comparator);
+    }
 
     /**
-     * Returns the element at {@code index} (0-based).
-     *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Enumerates elements until reaching {@code index}.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>{@code index < 0} is invalid.</li>
-     *   <li>If the sequence ends before {@code index}, throws {@link IndexOutOfBoundsException}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical streaming implementation: Time O(index) (worst-case O(n)), Space O(1).</p>
+     * Returns the element at the specified 0-based index.
      *
      * @param index 0-based index
      * @return the element at {@code index}
@@ -827,24 +808,10 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Returns the element at {@code index}, or {@code defaultElement} if out of range.
-     *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>If {@code index} is within range, returns the element at {@code index}.</li>
-     *   <li>If {@code index} is out of range (including negative), returns {@code defaultElement}.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Unlike {@link #elementAt(int)}, negative indices do not throw; they return {@code defaultElement}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(min(n, index)) typical. Space: O(1).</p>
+     * Returns the element at the specified 0-based index, or {@code defaultElement} if out of range.
      *
      * @param index 0-based index
-     * @param defaultElement returned when out of range
+     * @param defaultElement value returned when the index is out of range
      * @return element at {@code index}, or {@code defaultElement} if out of range
      * @throws RuntimeException if enumeration fails
      */
@@ -853,59 +820,21 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Returns an empty sequence of the same element type.
-     *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Returns a sequence that yields no elements.</li>
-     *   <li>The returned sequence should be safe to enumerate multiple times.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(1). Space: O(1).</p>
-     *
-     * @return empty sequence
-     * @throws RuntimeException if empty sequence cannot be created (implementation-defined)
-     */
-    Enumerable<T> empty();
-
-    /**
-     * Produces elements of this sequence that are not in {@code other} (set difference).
-     *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Typical implementation materializes {@code other} into a set, then filters this sequence.</li>
-     *   <li>Equality typically uses {@link Object#equals(Object)}.</li>
-     *   <li>Typical behavior preserves this sequence's order.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty {@code other} yields the same sequence.</li>
-     *   <li>Empty source yields empty result.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n + m), Space O(m).</p>
+     * Produces elements of this sequence that are not present in {@code other}.
      *
      * @param other sequence to exclude
      * @return elements not present in {@code other}
      * @throws NullPointerException if {@code other} is {@code null}
      * @throws RuntimeException if enumeration fails
      */
-    Enumerable<T> except(Enumerable<? extends T> other);
+    default Enumerable<T> except(Enumerable<? extends T> other) {
+        return Except.except(this, other);
+    }
 
     /**
-     * Produces elements of this sequence that are not in {@code other}, using comparator-defined equality.
+     * Produces elements of this sequence that are not present in {@code other}, using comparator-defined equality.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Equality is defined as {@code comparator.compare(a, b) == 0}.</li>
-     *   <li>Typical implementation materializes {@code other} into a comparator-backed structure, then filters.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(m log m + n log m). Space O(m).</p>
+     * <p>Equality is defined as {@code comparator.compare(a, b) == 0}.</p>
      *
      * @param other sequence to exclude
      * @param comparator comparator defining equality
@@ -913,80 +842,52 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code other} or {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code comparator} throws
      */
-    Enumerable<T> except(Enumerable<? extends T> other, Comparator<? super T> comparator);
+    default Enumerable<T> except(Enumerable<? extends T> other, Comparator<? super T> comparator) {
+        return Except.except(this, other, comparator);
+    }
 
     /**
-     * Produces elements whose keys are not in {@code other}'s keys (keyed set difference).
-     *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Extracts keys from this sequence via {@code keyExtractor}.</li>
-     *   <li>Excludes element {@code x} if its key exists among keys extracted from {@code other} (implementation-defined
-     *       how keys are extracted from {@code other}; typically same key function on other element type, but here
-     *       {@code other} has element type {@code T}, so it is commonly the same key extraction on other elements).</li>
-     *   <li>Typical behavior preserves this sequence's order.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty {@code other} yields the same sequence.</li>
-     *   <li>Empty source yields empty result.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical hash-based: Time O(n + m), Space O(m) (key set).</p>
+     * Produces elements whose extracted keys do not appear in {@code other}'s extracted keys.
      *
      * @param other other sequence
-     * @param keyExtractor extracts key from this sequence elements
+     * @param keyExtractor extracts key from elements of this sequence
      * @param <K> key type
      * @return elements whose key does not appear in {@code other}'s keys
      * @throws NullPointerException if {@code other} or {@code keyExtractor} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code keyExtractor} throws
      */
-    <K> Enumerable<T> exceptBy(
+    default <K> Enumerable<T> exceptBy(
         Enumerable<? extends T> other,
         Function<? super T, ? extends K> keyExtractor
-    );
+    ) {
+        return Except.exceptBy(this, other, keyExtractor);
+    }
 
     /**
-     * Produces elements whose keys are not in {@code other}'s keys (keyed set difference) using a key comparator.
-     *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Key equality is defined as {@code comparator.compare(k1, k2) == 0}.</li>
-     *   <li>Typical implementation materializes {@code other}'s keys into a comparator-backed set.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(m log m + n log m). Space O(m).</p>
+     * Produces elements whose extracted keys do not appear in {@code other}'s extracted keys,
+     * using comparator-defined key equality.
      *
      * @param other other sequence
-     * @param keyExtractor extracts key from this sequence elements
+     * @param keyExtractor extracts key from elements of this sequence
      * @param comparator key comparator defining equality
      * @param <K> key type
      * @return elements whose key does not appear in {@code other}'s keys
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    <K> Enumerable<T> exceptBy(
+    default <K> Enumerable<T> exceptBy(
         Enumerable<? extends T> other,
         Function<? super T, ? extends K> keyExtractor,
         Comparator<? super K> comparator
-    );
+    ) {
+        return Except.exceptBy(this, other, keyExtractor, comparator);
+    }
 
     /**
-     * Returns the first element.
+     * Returns the first element of the sequence.
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty sequence throws {@link java.util.NoSuchElementException}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(1) typical. Space: O(1).</p>
-     *
-     * @return first element
-     * @throws java.util.NoSuchElementException if the sequence is empty
+     * @return the first element
+     * @throws NoSuchElementException if the sequence is empty
      * @throws RuntimeException if enumeration fails
      */
     default T first() {
@@ -994,26 +895,12 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Returns the first element matching {@code predicate}.
-     *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Enumerates from the start and returns the first element for which {@code predicate.test(x)} is {@code true}.</li>
-     *   <li>Short-circuits on first match.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>If no element matches, throws {@link java.util.NoSuchElementException}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n) worst-case. Space: O(1).</p>
+     * Returns the first element that matches {@code predicate}.
      *
      * @param predicate predicate to match
-     * @return first matching element
+     * @return the first matching element
      * @throws NullPointerException if {@code predicate} is {@code null}
-     * @throws java.util.NoSuchElementException if no element matches {@code predicate}
+     * @throws NoSuchElementException if no element matches the predicate
      * @throws RuntimeException if enumeration fails or {@code predicate} throws
      */
     default T first(Predicate<? super T> predicate) {
@@ -1021,19 +908,10 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Returns the first element, or {@code defaultElement} if empty.
+     * Returns the first element, or {@code defaultElement} if the sequence is empty.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>If empty, returns {@code defaultElement}.</li>
-     *   <li>Otherwise returns first element.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(1) typical. Space: O(1).</p>
-     *
-     * @param defaultElement returned when empty
-     * @return first element, or {@code defaultElement} if empty
+     * @param defaultElement value returned when empty
+     * @return the first element, or {@code defaultElement} if empty
      * @throws RuntimeException if enumeration fails
      */
     default T firstOrDefault(T defaultElement) {
@@ -1041,20 +919,11 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Returns the first element matching {@code predicate}, or {@code defaultElement} if none matches.
+     * Returns the first element that matches {@code predicate}, or {@code defaultElement} if none matches.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Returns first matching element if present.</li>
-     *   <li>If no match is found, returns {@code defaultElement}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n) worst-case. Space: O(1).</p>
-     *
-     * @param defaultElement returned when no match
+     * @param defaultElement value returned when no match exists
      * @param predicate predicate to match
-     * @return first matching element, or {@code defaultElement}
+     * @return the first matching element, or {@code defaultElement} if none matches
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code predicate} throws
      */
@@ -1062,502 +931,335 @@ public interface Enumerable<T> extends Iterable<T> {
         return First.firstOrDefault(this, predicate, defaultElement);
     }
 
-    /* ------------------------------------------------------------ */
-    /* Grouping / Joining                                            */
-    /* ------------------------------------------------------------ */
-
     /**
      * Groups elements by key, maps each element to {@code E}, then maps each group to {@code R}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Groups by {@code keyExtractor}.</li>
-     *   <li>Each source element is mapped by {@code elementSelector} into group element type {@code E}.</li>
-     *   <li>For each group, invokes {@code resultMapping.apply(key, groupEnumerable)} and yields the returned {@code R}.</li>
-     *   <li>Group materialization strategy is implementation-defined (may buffer per group).</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty source yields empty result.</li>
-     *   <li>Null keys may or may not be supported (implementation-defined).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n). Space O(n) (group buffers / materialization strategy dependent).</p>
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> lines = ...;
+     * Enumerable<Integer> sizes = lines.groupBy(
+     *     s -> s.length(),
+     *     Function.identity(),
+     *     (len, group) -> group.count()
+     * );
+     * }</pre>
      *
      * @param keyExtractor extracts the key for each element
-     * @param elementSelector maps each element to group element type
-     * @param resultMapping maps (key, group) to result
+     * @param elementSelector maps each element to group element type {@code E}
+     * @param resultMapping maps {@code (key, groupEnumerable)} to the result element
      * @param <K> key type
      * @param <E> group element type
-     * @param <R> result type
+     * @param <R> result element type
      * @return grouped results
      * @throws NullPointerException if {@code keyExtractor}, {@code elementSelector}, or {@code resultMapping} is {@code null}
      * @throws RuntimeException if enumeration fails or any supplied function throws
      */
-    <K, E, R> Enumerable<R> groupBy(
+    default <K, E, R> Enumerable<R> groupBy(
         Function<? super T, ? extends K> keyExtractor,
         Function<? super T, ? extends E> elementSelector,
         BinFunction<? super K, ? super Enumerable<E>, ? extends R> resultMapping
-    );
+    ) {
+        return Group.groupBy(this, keyExtractor, elementSelector, resultMapping);
+    }
 
     /**
-     * Groups elements by key with explicit key comparator, maps each element to {@code E}, then maps each group to {@code R}.
-     *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Groups by {@code keyExtractor}.</li>
-     *   <li>Key equality and/or ordering are defined by {@code comparator} (implementation-defined grouping strategy).</li>
-     *   <li>Each source element is mapped by {@code elementSelector} into {@code E}.</li>
-     *   <li>For each group, invokes {@code resultMapping.apply(key, groupEnumerable)}.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty source yields empty result.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical sorted-key strategy: Time O(n log k), Space O(n).</p>
+     * Groups elements by key using an explicit comparator, maps each element to {@code E}, then maps each group to {@code R}.
      *
      * @param keyExtractor extracts the key for each element
-     * @param elementSelector maps each element to group element type
-     * @param resultMapping maps (key, group) to result
-     * @param comparator comparator for keys (ordering / equality strategy)
+     * @param elementSelector maps each element to group element type {@code E}
+     * @param resultMapping maps {@code (key, groupEnumerable)} to the result element
+     * @param comparator comparator defining key equality/ordering (implementation-defined grouping strategy)
      * @param <K> key type
      * @param <E> group element type
-     * @param <R> result type
+     * @param <R> result element type
      * @return grouped results
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    <K, E, R> Enumerable<R> groupBy(
+    default <K, E, R> Enumerable<R> groupBy(
         Function<? super T, ? extends K> keyExtractor,
         Function<? super T, ? extends E> elementSelector,
         BinFunction<? super K, ? super Enumerable<E>, ? extends R> resultMapping,
         Comparator<? super K> comparator
-    );
+    ) {
+        return Group.groupBy(this, keyExtractor, elementSelector, resultMapping, comparator);
+    }
 
     /**
      * Groups elements into {@link Groupable} objects (key + group sequence), mapping each element to {@code E}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Groups by {@code keyExtractor}.</li>
-     *   <li>Elements are projected by {@code elementSelector}.</li>
-     *   <li>Returns a sequence of {@link Groupable} (each contains key + enumerable group).</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty source yields empty groups.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n), Space O(n).</p>
-     *
-     * @param keyExtractor extracts key
-     * @param elementSelector maps each element to group element type
+     * @param keyExtractor extracts the key for each element
+     * @param elementSelector maps each element to group element type {@code E}
      * @param <K> key type
      * @param <E> group element type
-     * @return groups
+     * @return groups as {@link Groupable} objects
      * @throws NullPointerException if {@code keyExtractor} or {@code elementSelector} is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function throws
      */
-    <K, E> Enumerable<Groupable<K, E>> groupBy(
+    default <K, E> Enumerable<Groupable<K, E>> groupBy(
         Function<? super T, ? extends K> keyExtractor,
         Function<? super T, ? extends E> elementSelector
-    );
+    ) {
+        return Group.groupBy(this, keyExtractor, elementSelector);
+    }
 
     /**
-     * Groups elements into {@link Groupable} objects (key + group sequence), mapping each element to {@code E},
-     * using an explicit key comparator.
+     * Groups elements into {@link Groupable} objects (key + group sequence) using an explicit key comparator,
+     * mapping each element to {@code E}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Key equality/ordering are defined by {@code comparator} (grouping strategy is implementation-defined).</li>
-     *   <li>Returns a sequence of {@link Groupable} values (key + group enumerable).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical sorted-key strategy: Time O(n log k), Space O(n).</p>
-     *
-     * @param keyExtractor extracts key
-     * @param elementSelector maps each element to group element type
-     * @param comparator key comparator
+     * @param keyExtractor extracts the key for each element
+     * @param elementSelector maps each element to group element type {@code E}
+     * @param comparator comparator defining key equality/ordering
      * @param <K> key type
      * @param <E> group element type
-     * @return groups
+     * @return groups as {@link Groupable} objects
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    <K, E> Enumerable<Groupable<K, E>> groupBy(
+    default <K, E> Enumerable<Groupable<K, E>> groupBy(
         Function<? super T, ? extends K> keyExtractor,
         Function<? super T, ? extends E> elementSelector,
         Comparator<? super K> comparator
-    );
+    ) {
+        return Group.groupBy(this, keyExtractor, elementSelector, comparator);
+    }
 
     /**
-     * Groups elements by key and maps each group to {@code R} (group elements are the original {@code T}).
+     * Groups elements by key and maps each group to {@code R} (group elements remain {@code T}).
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Groups by {@code keyExtractor}.</li>
-     *   <li>For each group, calls {@code resultMapping.apply(key, groupEnumerable)} and yields the result.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n). Space O(n).</p>
-     *
-     * @param keyExtractor extracts key
-     * @param resultMapping maps (key, group) to result
+     * @param keyExtractor extracts the key for each element
+     * @param resultMapping maps {@code (key, groupEnumerable)} to the result element
      * @param <K> key type
-     * @param <R> result type
+     * @param <R> result element type
      * @return grouped results
      * @throws NullPointerException if {@code keyExtractor} or {@code resultMapping} is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function throws
      */
-    <K, R> Enumerable<R> groupBy(
+    default <K, R> Enumerable<R> groupBy(
         Function<? super T, ? extends K> keyExtractor,
         BinFunction<? super K, ? super Enumerable<T>, ? extends R> resultMapping
-    );
+    ) {
+        return Group.groupBy(this, keyExtractor, resultMapping);
+    }
 
     /**
-     * Groups elements by key and maps each group to {@code R} (group elements are the original {@code T}),
-     * using an explicit key comparator.
+     * Groups elements by key using a comparator and maps each group to {@code R} (group elements remain {@code T}).
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Groups by {@code keyExtractor} with key equality/ordering defined by {@code comparator}.</li>
-     *   <li>For each group, calls {@code resultMapping.apply(key, groupEnumerable)}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical sorted-key strategy: Time O(n log k), Space O(n).</p>
-     *
-     * @param keyExtractor extracts key
-     * @param resultMapping maps (key, group) to result
-     * @param comparator key comparator
+     * @param keyExtractor extracts the key for each element
+     * @param resultMapping maps {@code (key, groupEnumerable)} to the result element
+     * @param comparator comparator defining key equality/ordering
      * @param <K> key type
-     * @param <R> result type
+     * @param <R> result element type
      * @return grouped results
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    <K, R> Enumerable<R> groupBy(
+    default <K, R> Enumerable<R> groupBy(
         Function<? super T, ? extends K> keyExtractor,
         BinFunction<? super K, ? super Enumerable<T>, ? extends R> resultMapping,
         Comparator<? super K> comparator
-    );
+    ) {
+        return Group.groupBy(this, keyExtractor, resultMapping, comparator);
+    }
 
     /**
      * Groups elements into {@link Groupable} objects (key + group), using original element type {@code T}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Groups by {@code keyExtractor}.</li>
-     *   <li>Returns groups as {@link Groupable} (key + group enumerable).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n). Space O(n).</p>
-     *
-     * @param keyExtractor extracts key
+     * @param keyExtractor extracts the key for each element
      * @param <K> key type
-     * @return groups
+     * @return groups as {@link Groupable} objects
      * @throws NullPointerException if {@code keyExtractor} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code keyExtractor} throws
      */
-    <K> Enumerable<Groupable<K, T>> groupBy(Function<? super T, ? extends K> keyExtractor);
+    default <K> Enumerable<Groupable<K, T>> groupBy(Function<? super T, ? extends K> keyExtractor) {
+        return Group.groupBy(this, keyExtractor);
+    }
 
     /**
-     * Groups elements into {@link Groupable} objects (key + group), using original element type {@code T},
-     * with an explicit key comparator.
+     * Groups elements into {@link Groupable} objects (key + group) using an explicit key comparator,
+     * using original element type {@code T}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Key equality/ordering are defined by {@code comparator}.</li>
-     *   <li>Returns groups as {@link Groupable} (key + group enumerable).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical sorted-key strategy: Time O(n log k), Space O(n).</p>
-     *
-     * @param keyExtractor extracts key
-     * @param comparator key comparator
+     * @param keyExtractor extracts the key for each element
+     * @param comparator comparator defining key equality/ordering
      * @param <K> key type
-     * @return groups
+     * @return groups as {@link Groupable} objects
      * @throws NullPointerException if {@code keyExtractor} or {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    <K> Enumerable<Groupable<K, T>> groupBy(
+    default <K> Enumerable<Groupable<K, T>> groupBy(
         Function<? super T, ? extends K> keyExtractor,
         Comparator<? super K> comparator
-    );
+    ) {
+        return Group.groupBy(this, keyExtractor, comparator);
+    }
 
     /**
-     * Group-joins this sequence with {@code other} (LINQ {@code GroupJoin}):
-     * for each element in this sequence, collects all matching elements from {@code other},
-     * then maps (thisElement, matchingGroup) to {@code R}.
+     * Group-joins this sequence with {@code other} (LINQ {@code GroupJoin} semantics).
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>For each {@code t} in this sequence, computes {@code k = selfKeyExtractor.apply(t)}.</li>
-     *   <li>Collects all {@code o} in {@code other} where {@code otherKeyExtractor.apply(o)} equals {@code k}
-     *       (equality strategy is implementation-defined when no comparator is provided).</li>
-     *   <li>Invokes {@code resultMapping.apply(t, groupEnumerable)}.</li>
-     * </ul>
+     * <p>For each element {@code t} in this sequence, finds all elements {@code o} in {@code other}
+     * whose keys match, and produces a result {@code R} via {@code resultMapping}.</p>
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>If no matches exist for a given {@code t}, the matching group is empty.</li>
-     *   <li>Empty source yields empty result; empty {@code other} yields groups that are always empty.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical hash lookup strategy: Time O(n + m), Space O(m).</p>
-     *
-     * @param other other sequence
-     * @param selfKeyExtractor key extractor for this sequence
-     * @param otherKeyExtractor key extractor for other sequence
-     * @param resultMapping maps (thisElement, matchingGroup) to result
-     * @param <O> other element type
-     * @param <K> key type
-     * @param <R> result type
-     * @return group-joined results
+     * @param other the other sequence
+     * @param selfKeyExtractor extracts the key from elements of this sequence
+     * @param otherKeyExtractor extracts the key from elements of {@code other}
+     * @param resultMapping maps {@code (t, matchingGroup)} to the output element
+     * @param <O> the element type of {@code other}
+     * @param <K> the key type used for matching
+     * @param <R> the result element type
+     * @return a sequence of results produced per element of this sequence
      * @throws NullPointerException if any parameter is {@code null}
-     * @throws RuntimeException if enumeration fails or any supplied function throws
+     * @throws RuntimeException if enumeration fails or supplied function throws
      */
-    <O, K, R> Enumerable<R> groupJoin(
+    default <O, K, R> Enumerable<R> groupJoin(
         Enumerable<? extends O> other,
         Function<? super T, ? extends K> selfKeyExtractor,
         Function<? super O, ? extends K> otherKeyExtractor,
         BiFunction<? super T, ? super Enumerable<O>, ? extends R> resultMapping
-    );
+    ) {
+        return GroupJoin.groupJoin(this, other, selfKeyExtractor, otherKeyExtractor, resultMapping);
+    }
 
     /**
-     * Group-joins this sequence with {@code other} (LINQ {@code GroupJoin}) using an explicit key comparator.
+     * Group-joins this sequence with {@code other} using an explicit key comparator.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Key equality is defined by {@code comparator.compare(k1, k2) == 0}.</li>
-     *   <li>For each {@code t} in this sequence, collects matching {@code o} in {@code other} whose keys are equal.</li>
-     *   <li>Invokes {@code resultMapping.apply(t, groupEnumerable)}.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>If no matches exist for a given {@code t}, the matching group is empty.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical comparator-backed strategy: Time O(m log m + n log m) (or O(n log k + m log k)), Space O(m).</p>
-     *
-     * @param other other sequence
-     * @param selfKeyExtractor key extractor for this sequence
-     * @param otherKeyExtractor key extractor for other sequence
-     * @param resultMapping maps (thisElement, matchingGroup) to result
-     * @param comparator key comparator defining equality
-     * @param <O> other element type
-     * @param <K> key type
-     * @param <R> result type
-     * @return group-joined results
+     * @param other the other sequence
+     * @param selfKeyExtractor extracts the key from elements of this sequence
+     * @param otherKeyExtractor extracts the key from elements of {@code other}
+     * @param resultMapping maps {@code (t, matchingGroup)} to the output element
+     * @param comparator comparator defining key equality
+     * @param <O> the element type of {@code other}
+     * @param <K> the key type used for matching
+     * @param <R> the result element type
+     * @return a sequence of results produced per element of this sequence
      * @throws NullPointerException if any parameter is {@code null}
-     * @throws RuntimeException if enumeration fails or any supplied function/comparator throws
+     * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    <O, K, R> Enumerable<R> groupJoin(
+    default <O, K, R> Enumerable<R> groupJoin(
         Enumerable<? extends O> other,
         Function<? super T, ? extends K> selfKeyExtractor,
         Function<? super O, ? extends K> otherKeyExtractor,
         BiFunction<? super T, ? super Enumerable<O>, ? extends R> resultMapping,
         Comparator<? super K> comparator
-    );
+    ) {
+        return GroupJoin.groupJoin(this, other, selfKeyExtractor, otherKeyExtractor, resultMapping, comparator);
+    }
 
     /**
      * Returns the intersection of this sequence and {@code other}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Yields elements from this sequence that also appear in {@code other} (equality strategy is implementation-defined).</li>
-     *   <li>Typical behavior yields distinct results, but this is implementation-defined unless specified.</li>
-     *   <li>Typical behavior preserves this sequence order for yielded elements.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n + m), Space O(min(n, m)) depending on strategy.</p>
-     *
-     * @param other other sequence
-     * @return intersection
+     * @param other the other sequence
+     * @return elements that appear in both sequences (semantics are implementation-defined)
      * @throws NullPointerException if {@code other} is {@code null}
      * @throws RuntimeException if enumeration fails
      */
-    Enumerable<T> intersect(Enumerable<? extends T> other);
+    default Enumerable<T> intersect(Enumerable<? extends T> other) {
+        return Intersect.intersect(this, other);
+    }
 
     /**
      * Returns the intersection of this sequence and {@code other} using comparator-defined equality.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Equality is defined as {@code comparator.compare(a, b) == 0}.</li>
-     *   <li>Result multiplicity and ordering are implementation-defined unless specified.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(m log m + n log m). Space O(m).</p>
-     *
-     * @param other other sequence
+     * @param other the other sequence
      * @param comparator comparator defining equality
-     * @return intersection
+     * @return intersection result
      * @throws NullPointerException if {@code other} or {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code comparator} throws
      */
-    Enumerable<T> intersect(Enumerable<? extends T> other, Comparator<? super T> comparator);
+    default Enumerable<T> intersect(Enumerable<? extends T> other, Comparator<? super T> comparator) {
+        return Intersect.intersect(this, other, comparator);
+    }
 
     /**
-     * Intersects by key: keeps elements whose extracted key exists in {@code other}.
-     *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>For each element {@code x}, computes {@code k = keyExtractor.apply(x)}.</li>
-     *   <li>Keeps {@code x} if {@code k} exists among elements of {@code other} (key equality is implementation-defined).</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty {@code other} yields empty result.</li>
-     *   <li>Empty source yields empty result.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n + m), Space O(m) (key set).</p>
+     * Returns elements whose extracted key appears in {@code other}.
      *
      * @param other keys to keep
-     * @param keyExtractor extracts key from this elements
+     * @param keyExtractor extracts key from this sequence elements
      * @param <K> key type
-     * @return intersection-by-key
+     * @return intersection-by-key result
      * @throws NullPointerException if {@code other} or {@code keyExtractor} is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function throws
      */
-    <K> Enumerable<T> intersectBy(
+    default <K> Enumerable<T> intersectBy(
         Enumerable<? extends K> other,
         Function<? super T, ? extends K> keyExtractor
-    );
+    ) {
+        return Intersect.intersectBy(this, other, keyExtractor);
+    }
 
     /**
-     * Intersects by key using an explicit key comparator.
-     *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Key equality is defined as {@code comparator.compare(k1, k2) == 0}.</li>
-     *   <li>Keeps element {@code x} if its extracted key matches some key in {@code other}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(m log m + n log m). Space O(m).</p>
+     * Returns elements whose extracted key appears in {@code other}, using comparator-defined key equality.
      *
      * @param other keys to keep
-     * @param keyExtractor extracts key from this elements
-     * @param comparator key comparator defining equality
+     * @param keyExtractor extracts key from this sequence elements
+     * @param comparator comparator defining key equality
      * @param <K> key type
-     * @return intersection-by-key
+     * @return intersection-by-key result
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    <K> Enumerable<T> intersectBy(
+    default <K> Enumerable<T> intersectBy(
         Enumerable<? extends K> other,
         Function<? super T, ? extends K> keyExtractor,
         Comparator<? super K> comparator
-    );
+    ) {
+        return Intersect.intersectBy(this, other, keyExtractor, comparator);
+    }
 
     /**
-     * Joins this sequence with {@code other} (LINQ {@code Join}) producing {@code R} per matching pair.
+     * Joins this sequence with {@code other} (LINQ {@code Join} semantics).
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>For each element {@code t} in this sequence, finds matching {@code o} in {@code other} where keys are equal
-     *       (equality strategy is implementation-defined when no comparator is provided).</li>
-     *   <li>For every matching pair, yields {@code resultMapping.apply(t, o)}.</li>
-     *   <li>Ordering of results is implementation-defined but typically follows this sequence order, then other order within matches.</li>
-     * </ul>
+     * <p>For each matching pair {@code (t, o)} whose keys match, yields {@code resultMapping.apply(t, o)}.</p>
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>If no matches exist, yields empty result.</li>
-     *   <li>Empty source or empty other yields empty result.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical hash lookup: Time O(n + m + matches), Space O(m).</p>
-     *
-     * @param other other sequence
-     * @param selfKeyExtractor key extractor for this sequence
-     * @param otherKeyExtractor key extractor for other sequence
-     * @param resultMapping maps a matching pair to result
-     * @param <O> other element type
-     * @param <K> key type
-     * @param <R> result type
+     * @param other the other sequence
+     * @param selfKeyExtractor extracts key from elements of this sequence
+     * @param otherKeyExtractor extracts key from elements of {@code other}
+     * @param resultMapping maps a matching pair to a result
+     * @param <O> the element type of {@code other}
+     * @param <K> the key type used for matching
+     * @param <R> the result element type
      * @return joined results
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function throws
      */
-    <O, K, R> Enumerable<R> join(
+    default <O, K, R> Enumerable<R> join(
         Enumerable<? extends O> other,
         Function<? super T, ? extends K> selfKeyExtractor,
         Function<? super O, ? extends K> otherKeyExtractor,
         BiFunction<? super T, ? super O, ? extends R> resultMapping
-    );
+    ) {
+        return Join.join(this, other, selfKeyExtractor, otherKeyExtractor, resultMapping);
+    }
 
     /**
-     * Joins this sequence with {@code other} (LINQ {@code Join}) using an explicit key comparator.
+     * Joins this sequence with {@code other} using comparator-defined key equality.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Key equality is defined as {@code comparator.compare(k1, k2) == 0}.</li>
-     *   <li>For each matching pair (t, o), yields {@code resultMapping.apply(t, o)}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(m log m + n log m + matches), Space O(m).</p>
-     *
-     * @param other other sequence
-     * @param selfKeyExtractor key extractor for this sequence
-     * @param otherKeyExtractor key extractor for other sequence
-     * @param resultMapping maps a matching pair to result
-     * @param comparator key comparator defining equality
-     * @param <O> other element type
-     * @param <K> key type
-     * @param <R> result type
+     * @param other the other sequence
+     * @param selfKeyExtractor extracts key from elements of this sequence
+     * @param otherKeyExtractor extracts key from elements of {@code other}
+     * @param resultMapping maps a matching pair to a result
+     * @param comparator comparator defining key equality
+     * @param <O> the element type of {@code other}
+     * @param <K> the key type used for matching
+     * @param <R> the result element type
      * @return joined results
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    <O, K, R> Enumerable<R> join(
+    default <O, K, R> Enumerable<R> join(
         Enumerable<? extends O> other,
         Function<? super T, ? extends K> selfKeyExtractor,
         Function<? super O, ? extends K> otherKeyExtractor,
         BiFunction<? super T, ? super O, ? extends R> resultMapping,
         Comparator<? super K> comparator
-    );
+    ) {
+        return Join.join(this, other, selfKeyExtractor, otherKeyExtractor, resultMapping, comparator);
+    }
 
     /**
-     * Returns the last element.
+     * Returns the last element of the sequence.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Traverses the sequence and returns the final element encountered.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty sequence throws {@link java.util.NoSuchElementException}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1).</p>
-     *
-     * @return last element
-     * @throws java.util.NoSuchElementException if the sequence is empty
+     * @return the last element
+     * @throws NoSuchElementException if the sequence is empty
      * @throws RuntimeException if enumeration fails
      */
     default T last() {
@@ -1565,25 +1267,12 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Returns the last element matching {@code predicate}.
-     *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Traverses the sequence and returns the last element for which {@code predicate.test(x)} is {@code true}.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>If no element matches, throws {@link java.util.NoSuchElementException}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1).</p>
+     * Returns the last element that matches {@code predicate}.
      *
      * @param predicate predicate to match
-     * @return last matching element
+     * @return the last matching element
      * @throws NullPointerException if {@code predicate} is {@code null}
-     * @throws java.util.NoSuchElementException if no element matches {@code predicate}
+     * @throws NoSuchElementException if no element matches the predicate
      * @throws RuntimeException if enumeration fails or {@code predicate} throws
      */
     default T last(Predicate<? super T> predicate) {
@@ -1591,19 +1280,10 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Returns the last element or {@code defaultElement} if empty.
+     * Returns the last element, or {@code defaultElement} if the sequence is empty.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>If empty, returns {@code defaultElement}.</li>
-     *   <li>Otherwise returns last element.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1).</p>
-     *
-     * @param defaultElement returned when empty
-     * @return last element, or {@code defaultElement} if empty
+     * @param defaultElement value returned when empty
+     * @return the last element, or {@code defaultElement} if empty
      * @throws RuntimeException if enumeration fails
      */
     default T lastOrDefault(T defaultElement) {
@@ -1611,20 +1291,11 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Returns the last element matching {@code predicate} or {@code defaultElement} if none matches.
-     *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>If at least one element matches, returns the last matching element.</li>
-     *   <li>Otherwise returns {@code defaultElement}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1).</p>
+     * Returns the last element that matches {@code predicate}, or {@code defaultElement} if none matches.
      *
      * @param predicate predicate to match
-     * @param defaultElement returned when none matches
-     * @return last matching element, or {@code defaultElement}
+     * @param defaultElement value returned when no match exists
+     * @return the last matching element, or {@code defaultElement} if none matches
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code predicate} throws
      */
@@ -1635,169 +1306,102 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Left-joins this sequence with {@code other}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>For each element {@code t} in this sequence, finds matches {@code o} in {@code other} where keys are equal
-     *       (equality strategy is implementation-defined when no comparator is provided).</li>
-     *   <li>For each match, yields {@code resultMapping.apply(t, o)}.</li>
-     *   <li>If no matches exist, yields exactly one result with {@code o = null}.</li>
-     * </ul>
+     * <p>For each element {@code t} in this sequence, yields one result per match in {@code other}.
+     * If no match exists, yields exactly one result with {@code o = null}.</p>
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty source yields empty result.</li>
-     *   <li>Empty other yields one result per source element, with {@code o = null}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n + m + matches), Space O(m) (lookup structure).</p>
-     *
-     * @param other other sequence
-     * @param selfKeyExtractor key extractor for this sequence
-     * @param otherKeyExtractor key extractor for other sequence
-     * @param resultMapping maps (t, oOrNull) to result
-     * @param <O> other element type
-     * @param <K> key type
-     * @param <R> result type
+     * @param other the other sequence
+     * @param selfKeyExtractor extracts key from elements of this sequence
+     * @param otherKeyExtractor extracts key from elements of {@code other}
+     * @param resultMapping maps {@code (t, oOrNull)} to the result element
+     * @param <O> the element type of {@code other}
+     * @param <K> the key type used for matching
+     * @param <R> the result element type
      * @return left-joined results
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function throws
      */
-    <O, K, R> Enumerable<R> leftJoin(
+    default <O, K, R> Enumerable<R> leftJoin(
         Enumerable<? extends O> other,
         Function<? super T, ? extends K> selfKeyExtractor,
         Function<? super O, ? extends K> otherKeyExtractor,
         BiFunction<? super T, ? super @Nullable O, ? extends R> resultMapping
-    );
+    ) {
+        return Join.leftJoin(this, other, selfKeyExtractor, otherKeyExtractor, resultMapping);
+    }
 
     /**
-     * Left-joins this sequence with {@code other} using an explicit key comparator.
+     * Left-joins this sequence with {@code other} using comparator-defined key equality.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Key equality is defined as {@code comparator.compare(k1, k2) == 0}.</li>
-     *   <li>For each {@code t}, yields one result per match; if none, yields one result with {@code o = null}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(m log m + n log m + matches), Space O(m).</p>
-     *
-     * @param other other sequence
-     * @param selfKeyExtractor key extractor for this sequence
-     * @param otherKeyExtractor key extractor for other sequence
-     * @param resultMapping maps (t, oOrNull) to result
-     * @param comparator key comparator defining equality
-     * @param <O> other element type
-     * @param <K> key type
-     * @param <R> result type
+     * @param other the other sequence
+     * @param selfKeyExtractor extracts key from elements of this sequence
+     * @param otherKeyExtractor extracts key from elements of {@code other}
+     * @param resultMapping maps {@code (t, oOrNull)} to the result element
+     * @param comparator comparator defining key equality
+     * @param <O> the element type of {@code other}
+     * @param <K> the key type used for matching
+     * @param <R> the result element type
      * @return left-joined results
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    <O, K, R> Enumerable<R> leftJoin(
+    default <O, K, R> Enumerable<R> leftJoin(
         Enumerable<? extends O> other,
         Function<? super T, ? extends K> selfKeyExtractor,
         Function<? super O, ? extends K> otherKeyExtractor,
         BiFunction<? super T, ? super @Nullable O, ? extends R> resultMapping,
         Comparator<? super K> comparator
-    );
+    ) {
+        return Join.leftJoin(this, other, selfKeyExtractor, otherKeyExtractor, resultMapping, comparator);
+    }
 
     /**
-     * Returns the maximum int value projected by {@code intMapping}.
+     * Returns the maximum projected {@code int} value.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Projects each element via {@code intMapping} and returns the maximum value.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty sequence typically throws {@link java.util.NoSuchElementException} (implementation-defined).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1).</p>
-     *
-     * @param intMapping mapper
-     * @return max projected value
+     * @param intMapping mapping from elements to {@code int}
+     * @return the maximum projected value
      * @throws NullPointerException if {@code intMapping} is {@code null}
-     * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
+     * @throws NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or mapper throws
      */
-    int max(ToIntFunction<? super T> intMapping);
+    default int maxByInt(ToIntFunction<? super T> intMapping) {
+        return Max.max(this, intMapping);
+    }
 
     /**
-     * Returns the maximum long value projected by {@code longMapping}.
+     * Returns the maximum projected {@code long} value.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Projects each element via {@code longMapping} and returns the maximum value.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty sequence typically throws {@link java.util.NoSuchElementException} (implementation-defined).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1).</p>
-     *
-     * @param longMapping mapper
-     * @return max projected value
+     * @param longMapping mapping from elements to {@code long}
+     * @return the maximum projected value
      * @throws NullPointerException if {@code longMapping} is {@code null}
-     * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
+     * @throws NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or mapper throws
      */
-    long max(ToLongFunction<? super T> longMapping);
+    default long maxByLong(ToLongFunction<? super T> longMapping) {
+        return Max.max(this, longMapping);
+    }
 
     /**
-     * Returns the maximum double value projected by {@code doubleMapping}.
+     * Returns the maximum projected {@code double} value.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Projects each element via {@code doubleMapping} and returns the maximum value.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty sequence typically throws {@link java.util.NoSuchElementException} (implementation-defined).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1).</p>
-     *
-     * @param doubleMapping mapper
-     * @return max projected value
+     * @param doubleMapping mapping from elements to {@code double}
+     * @return the maximum projected value
      * @throws NullPointerException if {@code doubleMapping} is {@code null}
-     * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
+     * @throws NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or mapper throws
      */
-    double max(ToDoubleFunction<? super T> doubleMapping);
+    default double maxByDouble(ToDoubleFunction<? super T> doubleMapping) {
+        return Max.max(this, doubleMapping);
+    }
 
     /**
-     * Returns the element with maximum extracted key using a comparator.
+     * Returns the element whose extracted key is maximal, using the provided comparator.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Computes keys using {@code keyExtractor}.</li>
-     *   <li>Compares keys using {@code comparator} and returns the element with maximum key.</li>
-     *   <li>If multiple elements tie for maximum key, tie-breaking is implementation-defined (commonly the first encountered).</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty sequence typically throws {@link java.util.NoSuchElementException} (implementation-defined).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1).</p>
-     *
-     * @param keyExtractor extracts key
-     * @param comparator key comparator
+     * @param keyExtractor extracts a key from each element
+     * @param comparator comparator for keys
      * @param <K> key type
-     * @return element whose key is maximal
+     * @return the element with the maximum key
      * @throws NullPointerException if {@code keyExtractor} or {@code comparator} is {@code null}
-     * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
+     * @throws NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
     default <K> T maxBy(Function<? super T, ? extends K> keyExtractor, Comparator<? super K> comparator) {
@@ -1805,29 +1409,14 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Returns the element with maximum extracted key using natural key ordering.
+     * Returns the element whose extracted key is maximal, using natural key ordering.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Computes keys using {@code keyExtractor}.</li>
-     *   <li>Compares keys using their natural ordering ({@link Comparable}).</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty sequence typically throws {@link java.util.NoSuchElementException} (implementation-defined).</li>
-     *   <li>If extracted keys are not mutually comparable at runtime, throws {@link ClassCastException} (implementation-defined).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1).</p>
-     *
-     * @param keyExtractor extracts key
-     * @param <K> key type
-     * @return element whose key is maximal
+     * @param keyExtractor extracts a key from each element
+     * @param <K> key type (must be {@link Comparable})
+     * @return the element with the maximum key
      * @throws NullPointerException if {@code keyExtractor} is {@code null}
-     * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
-     * @throws ClassCastException if extracted keys are not mutually comparable (implementation-defined)
+     * @throws NoSuchElementException if the sequence is empty (typical; implementation-defined)
+     * @throws ClassCastException if keys are not mutually comparable (implementation-defined)
      * @throws RuntimeException if enumeration fails or {@code keyExtractor} throws
      */
     default <K extends Comparable<? super K>> T maxBy(Function<? super T, ? extends K> keyExtractor) {
@@ -1835,68 +1424,68 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Returns the minimum int value projected by {@code intMapping}.
+     * Returns the minimum projected {@code int} value.
      *
-     * @param intMapping mapper
-     * @return min projected value
+     * @param intMapping mapping from elements to {@code int}
+     * @return the minimum projected value
      * @throws NullPointerException if {@code intMapping} is {@code null}
-     * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
+     * @throws NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or mapper throws
      */
-    default int min(ToIntFunction<? super T> intMapping) {
+    default int minByInt(ToIntFunction<? super T> intMapping) {
         return Min.min(this, intMapping);
     }
 
     /**
-     * Returns the minimum long value projected by {@code longMapping}.
+     * Returns the minimum projected {@code long} value.
      *
-     * @param longMapping mapper
-     * @return min projected value
+     * @param longMapping mapping from elements to {@code long}
+     * @return the minimum projected value
      * @throws NullPointerException if {@code longMapping} is {@code null}
-     * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
+     * @throws NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or mapper throws
      */
-    default long min(ToLongFunction<? super T> longMapping) {
+    default long minByLong(ToLongFunction<? super T> longMapping) {
         return Min.min(this, longMapping);
     }
 
     /**
-     * Returns the minimum double value projected by {@code doubleMapping}.
+     * Returns the minimum projected {@code double} value.
      *
-     * @param doubleMapping mapper
-     * @return min projected value
+     * @param doubleMapping mapping from elements to {@code double}
+     * @return the minimum projected value
      * @throws NullPointerException if {@code doubleMapping} is {@code null}
-     * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
+     * @throws NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or mapper throws
      */
-    default double min(ToDoubleFunction<? super T> doubleMapping) {
+    default double minByDouble(ToDoubleFunction<? super T> doubleMapping) {
         return Min.min(this, doubleMapping);
     }
 
     /**
-     * Returns the element with minimum extracted key using a comparator.
+     * Returns the element whose extracted key is minimal, using the provided comparator.
      *
-     * @param keyExtractor extracts key
-     * @param comparator key comparator
+     * @param keyExtractor extracts a key from each element
+     * @param comparator comparator for keys
      * @param <K> key type
-     * @return element whose key is minimal
+     * @return the element with the minimum key
      * @throws NullPointerException if {@code keyExtractor} or {@code comparator} is {@code null}
-     * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
+     * @throws NoSuchElementException if the sequence is empty (typical; implementation-defined)
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    default  <K> T minBy(Function<? super T, ? extends K> keyExtractor, Comparator<? super K> comparator) {
+    default <K> T minBy(Function<? super T, ? extends K> keyExtractor, Comparator<? super K> comparator) {
         return Min.minBy(this, keyExtractor, comparator);
     }
 
     /**
-     * Returns the element with minimum extracted key using natural key ordering.
+     * Returns the element whose extracted key is minimal, using natural key ordering.
      *
-     * @param keyExtractor extracts key
-     * @param <K> key type
-     * @return element whose key is minimal
+     * @param keyExtractor extracts a key from each element
+     * @param <K> key type (must be {@link Comparable})
+     * @return the element with the minimum key
      * @throws NullPointerException if {@code keyExtractor} is {@code null}
-     * @throws java.util.NoSuchElementException if the sequence is empty (typical; implementation-defined)
-     * @throws ClassCastException if extracted keys are not mutually comparable (implementation-defined)
+     * @throws NoSuchElementException if the sequence is empty (typical; implementation-defined)
+     * @throws ClassCastException if keys are not mutually comparable (implementation-defined)
      * @throws RuntimeException if enumeration fails or {@code keyExtractor} throws
      */
     default <K extends Comparable<? super K>> T minBy(Function<? super T, ? extends K> keyExtractor) {
@@ -1904,323 +1493,221 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Filters elements by runtime type.
+     * Filters elements by runtime type and casts them to {@code C}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Yields only elements that are instances of {@code type}.</li>
-     *   <li>Equivalent to: {@code where(type::isInstance).select(type::cast)}.</li>
-     * </ul>
+     * <p>Equivalent to: {@code where(clazz::isInstance).select(clazz::cast)}.</p>
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty source yields empty result.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1) additional.</p>
-     *
-     * @param type desired runtime type
-     * @param <C> desired type
-     * @return sequence of elements that are instances of {@code type}
-     * @throws NullPointerException if {@code type} is {@code null}
+     * @param clazz the desired runtime type
+     * @param <C> the desired element type
+     * @return a sequence containing only elements that are instances of {@code clazz}
+     * @throws NullPointerException if {@code clazz} is {@code null}
      * @throws RuntimeException if enumeration fails
      */
-    <C> Enumerable<C> extractByType(Class<C> type);
+    default <C> Enumerable<C> extractTo(Class<C> clazz) {
+        return ExtractTo.extractTo(this, clazz);
+    }
 
     /**
      * Orders elements using natural ordering.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Sorts the entire sequence by natural order (requires elements to be mutually comparable).</li>
-     *   <li>Typical implementation materializes elements before sorting.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty/size-1 sequences return as-is.</li>
-     *   <li>If elements are not mutually comparable, ordering fails (typically {@link ClassCastException}).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n log n). Space O(n).</p>
-     *
-     * @return ordered sequence
+     * @return an ordered sequence
      * @throws ClassCastException if elements are not mutually comparable (implementation-defined)
      * @throws RuntimeException if ordering cannot be performed (implementation-defined)
      */
-    Enumerable<T> order();
+    default OrderedEnumerable<T> order() {
+        return Order.order(this);
+    }
 
     /**
      * Orders elements using the provided comparator.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Sorts the entire sequence using {@code comparator}.</li>
-     *   <li>Typical implementation materializes elements before sorting.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n log n). Space O(n).</p>
-     *
      * @param comparator comparator to use
-     * @return ordered sequence
+     * @return an ordered sequence
      * @throws NullPointerException if {@code comparator} is {@code null}
      * @throws RuntimeException if ordering cannot be performed or {@code comparator} throws
      */
-    Enumerable<T> order(Comparator<? super T> comparator);
+    default OrderedEnumerable<T> order(Comparator<? super T> comparator) {
+        return Order.order(this, comparator);
+    }
 
     /**
      * Orders elements by extracted key using natural key ordering.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Computes key for each element via {@code keyExtractor} and sorts by those keys.</li>
-     *   <li>Requires keys to be mutually comparable at runtime (implementation-defined).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n log n). Space O(n).</p>
-     *
-     * @param keyExtractor key extractor
+     * @param keyExtractor extracts the key
      * @param <K> key type
-     * @return ordered sequence
+     * @return an ordered sequence
      * @throws NullPointerException if {@code keyExtractor} is {@code null}
-     * @throws ClassCastException if extracted keys are not mutually comparable (implementation-defined)
+     * @throws ClassCastException if keys are not mutually comparable (implementation-defined)
      * @throws RuntimeException if ordering cannot be performed or {@code keyExtractor} throws
      */
-    <K> Enumerable<T> orderBy(Function<? super T, ? extends K> keyExtractor);
+    default <K> OrderedEnumerable<T> orderBy(Function<? super T, ? extends K> keyExtractor) {
+        return Order.orderBy(this, keyExtractor);
+    }
 
     /**
-     * Orders elements by extracted key using a key comparator.
+     * Orders elements by extracted key using the provided key comparator.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Computes key for each element via {@code keyExtractor} and sorts by those keys using {@code comparator}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n log n). Space O(n).</p>
-     *
-     * @param keyExtractor key extractor
-     * @param comparator key comparator
+     * @param keyExtractor extracts the key
+     * @param comparator comparator for keys
      * @param <K> key type
-     * @return ordered sequence
+     * @return an ordered sequence
      * @throws NullPointerException if {@code keyExtractor} or {@code comparator} is {@code null}
      * @throws RuntimeException if ordering cannot be performed or supplied function/comparator throws
      */
-    <K> Enumerable<T> orderBy(Function<? super T, ? extends K> keyExtractor, Comparator<? super K> comparator);
+    default <K> OrderedEnumerable<T> orderBy(Function<? super T, ? extends K> keyExtractor, Comparator<? super K> comparator) {
+        return Order.orderBy(this, keyExtractor, comparator);
+    }
 
     /**
      * Orders elements descending using natural ordering.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Equivalent to {@link #order()} followed by reversing the order (implementation-defined how).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n log n). Space O(n).</p>
-     *
-     * @return descending-ordered sequence
+     * @return a descending-ordered sequence
      * @throws ClassCastException if elements are not mutually comparable (implementation-defined)
      * @throws RuntimeException if ordering cannot be performed
      */
-    Enumerable<T> orderDescending();
+    default OrderedEnumerable<T> orderDescending() {
+        return Order.orderDescending(this);
+    }
 
     /**
-     * Orders elements descending using comparator.
+     * Orders elements descending using the provided comparator.
      *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n log n). Space O(n).</p>
-     *
-     * @param comparator comparator
-     * @return descending-ordered sequence
+     * @param comparator comparator to use
+     * @return a descending-ordered sequence
      * @throws NullPointerException if {@code comparator} is {@code null}
      * @throws RuntimeException if ordering cannot be performed or comparator throws
      */
-    Enumerable<T> orderDescending(Comparator<? super T> comparator);
+    default OrderedEnumerable<T> orderDescending(Comparator<? super T> comparator) {
+        return Order.orderDescending(this, comparator);
+    }
 
     /**
      * Orders elements descending by extracted key using natural key ordering.
      *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n log n). Space O(n).</p>
-     *
-     * @param keyExtractor key extractor
+     * @param keyExtractor extracts the key
      * @param <K> key type
-     * @return descending-ordered sequence
+     * @return a descending-ordered sequence
      * @throws NullPointerException if {@code keyExtractor} is {@code null}
      * @throws ClassCastException if keys are not mutually comparable (implementation-defined)
      * @throws RuntimeException if ordering cannot be performed or keyExtractor throws
      */
-    <K> Enumerable<T> orderByDescending(Function<? super T, ? extends K> keyExtractor);
+    default <K> OrderedEnumerable<T> orderDescendingBy(Function<? super T, ? extends K> keyExtractor) {
+        return Order.orderDescendingBy(this, keyExtractor);
+    }
 
     /**
-     * Orders elements descending by extracted key using a key comparator.
+     * Orders elements descending by extracted key using the provided key comparator.
      *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n log n). Space O(n).</p>
-     *
-     * @param keyExtractor key extractor
-     * @param comparator key comparator
+     * @param keyExtractor extracts the key
+     * @param comparator comparator for keys
      * @param <K> key type
-     * @return descending-ordered sequence
+     * @return a descending-ordered sequence
      * @throws NullPointerException if {@code keyExtractor} or {@code comparator} is {@code null}
      * @throws RuntimeException if ordering cannot be performed or supplied function/comparator throws
      */
-    <K> Enumerable<T> orderByDescending(Function<? super T, ? extends K> keyExtractor, Comparator<? super K> comparator);
+    default <K> OrderedEnumerable<T> orderDescendingBy(
+        Function<? super T, ? extends K> keyExtractor,
+        Comparator<? super K> comparator
+    ) {
+        return Order.orderDescendingBy(this, keyExtractor, comparator);
+    }
 
     /**
-     * Prepends one element to the start of the sequence.
+     * Returns a sequence that yields {@code element} followed by all elements of this sequence.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Returns a new sequence that yields {@code element}, then yields all elements of this sequence.</li>
-     *   <li>Typically lazy.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Creation: O(1). Enumeration: O(n + 1). Extra space: O(1).</p>
-     *
-     * @param element element to prepend
-     * @return new sequence beginning with {@code element}
+     * @param element the element to prepend
+     * @return a new sequence beginning with {@code element}
      * @throws RuntimeException if the new sequence cannot be created (implementation-defined)
      */
-    Enumerable<T> prepend(T element);
+    default Enumerable<T> prepend(T element) {
+        return AppendPrepend.prepend(this, element);
+    }
 
     /**
-     * Right-joins this sequence with {@code other} (conceptually symmetric to left join).
+     * Right-joins this sequence with {@code other} (conceptually {@code other LEFT JOIN this}).
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Typical meaning: performs {@code other LEFT JOIN this} semantics.</li>
-     *   <li>For each element {@code o} in {@code other}, matches {@code t} in this sequence by key equality
-     *       (equality strategy is implementation-defined when no comparator is provided).</li>
-     *   <li>Yields {@code resultMapping.apply(t, o)} for each match; behavior when no match exists is implementation-defined
-     *       (some implementations still yield a result with null t; you may want to specify this in implementation).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n + m + matches), Space O(n) (lookup structure built from this sequence or other).</p>
-     *
-     * @param other other sequence
-     * @param selfKeyExtractor key extractor for this sequence
-     * @param otherKeyExtractor key extractor for other sequence
-     * @param resultMapping maps (thisElement, otherElement) to result
-     * @param <O> other element type
-     * @param <K> key type
-     * @param <R> result type
+     * @param other the other sequence
+     * @param selfKeyExtractor extracts key from elements of this sequence
+     * @param otherKeyExtractor extracts key from elements of {@code other}
+     * @param resultMapping maps a matching pair to a result
+     * @param <O> the element type of {@code other}
+     * @param <K> the key type used for matching
+     * @param <R> the result element type
      * @return right-joined results
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function throws
      */
-    <O, K, R> Enumerable<R> rightJoin(
+    default <O, K, R> Enumerable<R> rightJoin(
         Enumerable<? extends O> other,
         Function<? super T, ? extends K> selfKeyExtractor,
         Function<? super O, ? extends K> otherKeyExtractor,
         BiFunction<? super T, ? super O, ? extends R> resultMapping
-    );
+    ) {
+        return Join.rightJoin(this, other, selfKeyExtractor, otherKeyExtractor, resultMapping);
+    }
 
     /**
-     * Right-joins this sequence with {@code other} using an explicit key comparator.
+     * Right-joins this sequence with {@code other} using comparator-defined key equality.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Key equality is defined as {@code comparator.compare(k1, k2) == 0}.</li>
-     *   <li>Matching and result multiplicity are implementation-defined; typical is symmetric to leftJoin.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n log n + m log n + matches), Space O(n).</p>
-     *
-     * @param other other sequence
-     * @param selfKeyExtractor key extractor for this sequence
-     * @param otherKeyExtractor key extractor for other sequence
-     * @param resultMapping maps (thisElement, otherElement) to result
-     * @param comparator key comparator defining equality
-     * @param <O> other element type
-     * @param <K> key type
-     * @param <R> result type
+     * @param other the other sequence
+     * @param selfKeyExtractor extracts key from elements of this sequence
+     * @param otherKeyExtractor extracts key from elements of {@code other}
+     * @param resultMapping maps a matching pair to a result
+     * @param comparator comparator defining key equality
+     * @param <O> the element type of {@code other}
+     * @param <K> the key type used for matching
+     * @param <R> the result element type
      * @return right-joined results
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    <O, K, R> Enumerable<R> rightJoin(
+    default <O, K, R> Enumerable<R> rightJoin(
         Enumerable<? extends O> other,
         Function<? super T, ? extends K> selfKeyExtractor,
         Function<? super O, ? extends K> otherKeyExtractor,
         BiFunction<? super T, ? super O, ? extends R> resultMapping,
         Comparator<? super K> comparator
-    );
+    ) {
+        return Join.rightJoin(this, other, selfKeyExtractor, otherKeyExtractor, resultMapping, comparator);
+    }
 
     /**
      * Projects each element using {@code selector}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Yields {@code selector.apply(x)} for each element {@code x}.</li>
-     *   <li>Typically lazy.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1) additional.</p>
-     *
      * @param selector projection function
      * @param <R> result element type
-     * @return projected sequence
+     * @return a projected sequence
      * @throws NullPointerException if {@code selector} is {@code null}
      * @throws RuntimeException if enumeration fails or selector throws
      */
-    <R> Enumerable<R> select(Function<? super T, ? extends R> selector);
+    default <R> Enumerable<R> select(Function<? super T, ? extends R> selector) {
+        return Select.select(this, selector);
+    }
 
     /**
-     * Projects each element to an inner sequence and flattens the result, then maps (outer, inner) to {@code R}.
+     * Projects each element into an inner sequence and flattens the result, then maps {@code (outer, inner)} to {@code R}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>For each outer element {@code t}, enumerates {@code collectionSelector.apply(t)}.</li>
-     *   <li>For each inner element {@code c}, yields {@code resultSelector.apply(t, c)}.</li>
-     *   <li>Equivalent to nested loops (deferred).</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>If {@code collectionSelector} returns an empty sequence for some {@code t}, it yields no results for that {@code t}.</li>
-     *   <li>If {@code collectionSelector} returns {@code null}, behavior is implementation-defined but typically NPE during enumeration.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(total inner elements). Space: O(1) additional (excluding inner enumerables).</p>
-     *
-     * @param collectionSelector maps outer element to an inner sequence
-     * @param resultSelector maps (outer, innerElement) to result element
+     * @param collectionSelector maps each outer element to an inner sequence
+     * @param resultSelector maps {@code (outer, innerElement)} to result element
      * @param <C> inner element type
      * @param <R> result element type
-     * @return flattened mapped sequence
+     * @return a flattened mapped sequence
      * @throws NullPointerException if {@code collectionSelector} or {@code resultSelector} is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function throws
      */
-    <C, R> Enumerable<R> selectMany(
+    default <C, R> Enumerable<R> selectMany(
         Function<? super T, ? extends Enumerable<? extends C>> collectionSelector,
         BiFunction<? super T, ? super C, ? extends R> resultSelector
-    );
+    ) {
+        return Select.selectMany(this, collectionSelector, resultSelector);
+    }
 
     /**
-     * Flat-maps each element into an inner sequence (identity result mapping).
-     *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Equivalent to {@code selectMany(selector, (t, c) -> c)}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(total inner elements). Space: O(1) additional.</p>
+     * Projects each element into an inner sequence and flattens the result (identity mapping).
      *
      * @param selector maps each element to an inner sequence
      * @param <C> inner element type
-     * @return flattened sequence
+     * @return a flattened sequence
      * @throws NullPointerException if {@code selector} is {@code null}
      * @throws RuntimeException if enumeration fails or selector throws
      */
@@ -2231,46 +1718,22 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Returns a shuffled sequence; {@code predicate} may control which elements participate.
+     * Returns a shuffled sequence; {@code predicate} controls which elements participate.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Typical implementation materializes the elements satisfying {@code predicate}, shuffles them,
-     *       and yields them (elements not satisfying predicate may be yielded in original order or excluded;
-     *       this is implementation-defined unless specified).</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>Empty sequence yields empty result.</li>
-     *   <li>If the sequence is infinite, shuffling may not terminate (implementation-defined).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical (materialize + Fisher-Yates): Time O(n), Space O(n) for participating elements.</p>
-     *
-     * @param predicate controls which elements participate
-     * @return shuffled sequence
+     * @param predicate predicate controlling which elements are shuffled
+     * @return a shuffled sequence
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or predicate throws
      */
-    Enumerable<T> shuffle(Predicate<? super T> predicate);
+    default Enumerable<T> shuffle(Predicate<? super T> predicate) {
+        return Shuffle.shuffle(this, predicate);
+    }
 
     /**
-     * Returns the single element.
+     * Returns the only element of the sequence.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>If exactly one element exists, returns it.</li>
-     *   <li>If empty, throws {@link java.util.NoSuchElementException}.</li>
-     *   <li>If more than one element exists, throws {@link IllegalStateException}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(2) typical (may stop after detecting second element). Space: O(1).</p>
-     *
-     * @return the only element
-     * @throws java.util.NoSuchElementException if the sequence is empty
+     * @return the single element
+     * @throws NoSuchElementException if the sequence is empty
      * @throws IllegalStateException if the sequence contains more than one element
      * @throws RuntimeException if enumeration fails
      */
@@ -2279,24 +1742,13 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Returns the single element matching {@code predicate}.
-     *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Finds all elements matching {@code predicate}.</li>
-     *   <li>If exactly one match exists, returns it.</li>
-     *   <li>If no matches exist, throws {@link java.util.NoSuchElementException}.</li>
-     *   <li>If more than one match exists, throws {@link IllegalStateException}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n) worst-case (must verify there is no second match). Space: O(1).</p>
+     * Returns the only element that matches {@code predicate}.
      *
      * @param predicate predicate to match
-     * @return the only matching element
+     * @return the single matching element
      * @throws NullPointerException if {@code predicate} is {@code null}
-     * @throws java.util.NoSuchElementException if no element matches {@code predicate}
-     * @throws IllegalStateException if more than one element matches {@code predicate}
+     * @throws NoSuchElementException if no element matches
+     * @throws IllegalStateException if more than one element matches
      * @throws RuntimeException if enumeration fails or predicate throws
      */
     default T single(Predicate<? super T> predicate) {
@@ -2304,21 +1756,10 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Returns the single element or {@code defaultElement} when the sequence is empty;
-     * throws if more than one element exists.
+     * Returns the single element, or {@code defaultElement} if empty; throws if more than one element exists.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>If empty: returns {@code defaultElement}.</li>
-     *   <li>If exactly one element: returns that element.</li>
-     *   <li>If more than one element: throws {@link IllegalStateException}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(2) typical. Space: O(1).</p>
-     *
-     * @param defaultElement returned when empty
-     * @return single element or {@code defaultElement} if empty
+     * @param defaultElement value returned when empty
+     * @return the single element, or {@code defaultElement} if empty
      * @throws IllegalStateException if the sequence contains more than one element
      * @throws RuntimeException if enumeration fails
      */
@@ -2327,24 +1768,14 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
-     * Returns the single element matching {@code predicate} or {@code defaultElement} when none matches;
+     * Returns the single element matching {@code predicate}, or {@code defaultElement} if none matches;
      * throws if more than one match exists.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>If no element matches: returns {@code defaultElement}.</li>
-     *   <li>If exactly one match: returns it.</li>
-     *   <li>If more than one match: throws {@link IllegalStateException}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n) worst-case. Space: O(1).</p>
-     *
      * @param predicate predicate to match
-     * @param defaultElement returned when none matches
-     * @return single matching element or {@code defaultElement}
+     * @param defaultElement value returned when no match exists
+     * @return the single matching element, or {@code defaultElement} if none matches
      * @throws NullPointerException if {@code predicate} is {@code null}
-     * @throws IllegalStateException if more than one element matches {@code predicate}
+     * @throws IllegalStateException if more than one element matches
      * @throws RuntimeException if enumeration fails or predicate throws
      */
     default T singleOrDefault(Predicate<? super T> predicate, T defaultElement) {
@@ -2354,288 +1785,142 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Skips the first {@code count} elements.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Returns a sequence that yields all elements after skipping the first {@code count}.</li>
-     *   <li>If {@code count} is greater than sequence length, yields an empty sequence.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n) overall when fully enumerated; skipping itself is O(count) during enumeration. Space: O(1).</p>
-     *
      * @param count number of elements to skip (must be non-negative)
-     * @return sequence skipping first {@code count} elements
+     * @return a sequence skipping the first {@code count} elements
      * @throws IllegalArgumentException if {@code count < 0}
      * @throws RuntimeException if enumeration fails
      */
-    Enumerable<T> skip(int count);
+    default Enumerable<T> skip(int count) {
+        return SkipTake.skip(this, count);
+    }
 
     /**
      * Skips the last {@code count} elements.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Returns a sequence that yields all elements except the last {@code count}.</li>
-     *   <li>Typical implementation buffers the last {@code count} elements while enumerating.</li>
-     *   <li>If {@code count} is greater than or equal to sequence length, yields an empty sequence.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Extra space: O(count) buffering (typical).</p>
-     *
-     * @param count number of elements to skip from end (must be non-negative)
-     * @return sequence without last {@code count} elements
+     * @param count number of elements to skip from the end (must be non-negative)
+     * @return a sequence without the last {@code count} elements
      * @throws IllegalArgumentException if {@code count < 0}
      * @throws RuntimeException if enumeration fails
      */
-    Enumerable<T> skipLast(int count);
+    default Enumerable<T> skipLast(int count) {
+        return SkipTake.skipLast(this, count);
+    }
 
     /**
-     * Skips elements while {@code predicate} is true.
+     * Skips elements while {@code predicate} is {@code true}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Skips a prefix of elements while {@code predicate.test(x)} is {@code true}.</li>
-     *   <li>Once the predicate becomes {@code false}, yields that element and all subsequent elements.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n) worst-case. Space: O(1).</p>
-     *
-     * @param predicate predicate
-     * @return sequence starting from first element that does not satisfy predicate
+     * @param predicate predicate to test
+     * @return the remaining sequence after skipping the prefix
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or predicate throws
      */
-    Enumerable<T> skipWhile(Predicate<? super T> predicate);
+    default Enumerable<T> skipWhile(Predicate<? super T> predicate) {
+        return SkipTake.skipWhile(this, predicate);
+    }
 
     /**
-     * Skips elements while {@code predicate} (element, index) is true.
+     * Skips elements while {@code predicate(element, index)} is {@code true}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Skips elements from the start while {@code predicate.test(element, index)} is {@code true}.</li>
-     *   <li>Index is 0-based and increases with each enumerated element.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n) worst-case. Space: O(1).</p>
-     *
-     * @param predicate predicate receiving (element, index)
-     * @return remaining sequence after skipping
+     * @param predicate predicate receiving {@code (element, index)}
+     * @return the remaining sequence after skipping the prefix
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or predicate throws
      */
-    Enumerable<T> skipWhile(BinPredicate<? super T, ? super Integer> predicate);
+    default Enumerable<T> skipWhile(BinPredicate<? super T, ? super Integer> predicate) {
+        return SkipTake.skipWhile(this, predicate);
+    }
 
     /**
      * Takes the first {@code count} elements.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Returns a sequence that yields up to {@code count} elements from the start.</li>
-     *   <li>If {@code count} is greater than sequence length, yields all elements.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(min(n, count)). Space: O(1).</p>
-     *
      * @param count number of elements to take (must be non-negative)
-     * @return sequence of at most {@code count} elements
+     * @return a sequence containing up to {@code count} elements
      * @throws IllegalArgumentException if {@code count < 0}
      * @throws RuntimeException if enumeration fails
      */
-    Enumerable<T> take(int count);
+    default Enumerable<T> take(int count) {
+        return SkipTake.take(this, count);
+    }
 
     /**
      * Takes the last {@code count} elements.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Returns a sequence containing the last {@code count} elements (or fewer if shorter).</li>
-     *   <li>Typical implementation buffers elements to determine the tail.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Extra space: O(count) buffering (typical).</p>
-     *
-     * @param count number of elements to take from end (must be non-negative)
-     * @return sequence of last {@code count} elements (or fewer if shorter)
+     * @param count number of elements to take from the end (must be non-negative)
+     * @return a sequence containing the last {@code count} elements (or fewer if shorter)
      * @throws IllegalArgumentException if {@code count < 0}
      * @throws RuntimeException if enumeration fails
      */
-    Enumerable<T> takeLast(int count);
+    default Enumerable<T> takeLast(int count) {
+        return SkipTake.takeLast(this, count);
+    }
 
     /**
-     * Takes elements while {@code predicate} is true.
+     * Takes elements while {@code predicate} is {@code true}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Yields a prefix of elements while {@code predicate.test(x)} is {@code true}.</li>
-     *   <li>Stops at the first element where predicate is {@code false} (does not include it).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(p) where {@code p} is length of taken prefix (worst-case O(n)). Space: O(1).</p>
-     *
-     * @param predicate predicate
-     * @return prefix sequence while predicate holds
+     * @param predicate predicate to test
+     * @return a prefix sequence while predicate holds
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or predicate throws
      */
-    Enumerable<T> takeWhile(Predicate<? super T> predicate);
+    default Enumerable<T> takeWhile(Predicate<? super T> predicate) {
+        return SkipTake.takeWhile(this, predicate);
+    }
 
     /**
-     * Takes elements while {@code predicate} (element, index) is true.
+     * Takes elements while {@code predicate(element, index)} is {@code true}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Yields a prefix of elements while {@code predicate.test(element, index)} is {@code true}.</li>
-     *   <li>Index is 0-based.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(p) where {@code p} is prefix length (worst-case O(n)). Space: O(1).</p>
-     *
-     * @param predicate predicate receiving (element, index)
-     * @return prefix sequence while predicate holds
+     * @param predicate predicate receiving {@code (element, index)}
+     * @return a prefix sequence while predicate holds
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or predicate throws
      */
-    Enumerable<T> takeWhile(BinPredicate<? super T, ? super Integer> predicate);
+    default Enumerable<T> takeWhile(BinPredicate<? super T, ? super Integer> predicate) {
+        return SkipTake.takeWhile(this, predicate);
+    }
 
     /**
-     * Sums elements mapped to double.
+     * Sums elements projected to {@code double}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Returns the sum of {@code doubleMapping.applyAsDouble(x)} over all elements.</li>
-     *   <li>Empty sequence returns {@code 0.0} (recommended; implementation-defined if different).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(1).</p>
-     *
-     * @param doubleMapping mapper
-     * @return sum
+     * @param doubleMapping mapping from elements to {@code double}
+     * @return the sum of projected values
      * @throws NullPointerException if {@code doubleMapping} is {@code null}
      * @throws RuntimeException if enumeration fails or mapper throws
      */
-    double sum(ToDoubleFunction<? super T> doubleMapping);
+    default double sum(ToDoubleFunction<? super T> doubleMapping) {
+        return Sum.sum(this, doubleMapping);
+    }
 
     /**
-     * Sums elements mapped to int (returned as long).
+     * Sums elements projected to {@code int} (accumulated as {@code long}).
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Returns the sum of {@code intMapping.applyAsInt(x)} over all elements, accumulated in {@code long}.</li>
-     *   <li>Empty sequence returns {@code 0L} (recommended; implementation-defined if different).</li>
-     * </ul>
-     *
-     * @param intMapping mapper
-     * @return sum
+     * @param intMapping mapping from elements to {@code int}
+     * @return the sum of projected values
      * @throws NullPointerException if {@code intMapping} is {@code null}
      * @throws RuntimeException if enumeration fails or mapper throws
      */
-    long sum(ToIntFunction<? super T> intMapping);
+    default long sum(ToIntFunction<? super T> intMapping) {
+        return Sum.sum(this, intMapping);
+    }
 
     /**
-     * Sums elements mapped to long.
+     * Sums elements projected to {@code long}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Returns the sum of {@code longMapping.applyAsLong(x)} over all elements.</li>
-     *   <li>Empty sequence returns {@code 0L} (recommended; implementation-defined if different).</li>
-     * </ul>
-     *
-     * @param longMapping mapper
-     * @return sum
+     * @param longMapping mapping from elements to {@code long}
+     * @return the sum of projected values
      * @throws NullPointerException if {@code longMapping} is {@code null}
      * @throws RuntimeException if enumeration fails or mapper throws
      */
-    long sum(ToLongFunction<? super T> longMapping);
-
-    /**
-     * Adds a secondary ascending ordering by key (thenBy) using a key comparator.
-     *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Defines a secondary ordering applied after a primary ordering.</li>
-     *   <li>If the sequence is not already ordered, behavior is implementation-defined (recommended: treat as {@code orderBy}).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n log n) when realized (depends on sorting strategy). Space O(n).</p>
-     *
-     * @param keyExtractor extracts secondary sort key
-     * @param comparator comparator for the secondary key
-     * @param <K> key type
-     * @return sequence with secondary ascending ordering
-     * @throws NullPointerException if {@code keyExtractor} or {@code comparator} is {@code null}
-     * @throws RuntimeException if ordering cannot be applied or supplied function/comparator throws
-     */
-    <K> Enumerable<T> thenBy(Function<? super T, ? extends K> keyExtractor, Comparator<? super K> comparator);
-
-    /**
-     * Adds a secondary ascending ordering by key (thenBy) using natural key ordering.
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>If keys are not mutually comparable at runtime, throws {@link ClassCastException} (implementation-defined).</li>
-     * </ul>
-     *
-     * @param keyExtractor extracts secondary sort key
-     * @param <K> key type
-     * @return sequence with secondary ascending ordering
-     * @throws NullPointerException if {@code keyExtractor} is {@code null}
-     * @throws ClassCastException if extracted keys are not mutually comparable (implementation-defined)
-     * @throws RuntimeException if ordering cannot be applied or keyExtractor throws
-     */
-    <K extends Comparable<? super K>> Enumerable<T> thenBy(Function<? super T, ? extends K> keyExtractor);
-
-    /**
-     * Adds a secondary descending ordering by key (thenByDescending) using a key comparator.
-     *
-     * @param keyExtractor extracts secondary sort key
-     * @param comparator comparator for the secondary key
-     * @param <K> key type
-     * @return sequence with secondary descending ordering
-     * @throws NullPointerException if {@code keyExtractor} or {@code comparator} is {@code null}
-     * @throws RuntimeException if ordering cannot be applied or supplied function/comparator throws
-     */
-    <K> Enumerable<T> thenByDescending(Function<? super T, ? extends K> keyExtractor, Comparator<? super K> comparator);
-
-    /**
-     * Adds a secondary descending ordering by key (thenByDescending) using natural key ordering.
-     *
-     * @param keyExtractor extracts secondary sort key
-     * @param <K> key type
-     * @return sequence with secondary descending ordering
-     * @throws NullPointerException if {@code keyExtractor} is {@code null}
-     * @throws ClassCastException if extracted keys are not mutually comparable (implementation-defined)
-     * @throws RuntimeException if ordering cannot be applied or keyExtractor throws
-     */
-    <K extends Comparable<? super K>> Enumerable<T> thenByDescending(Function<? super T, ? extends K> keyExtractor);
+    default long sum(ToLongFunction<? super T> longMapping) {
+        return Sum.sum(this, longMapping);
+    }
 
     /**
      * Materializes the sequence into an array.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Enumerates the entire sequence and returns an array containing all elements.</li>
-     *   <li>The runtime component type and array creation strategy are implementation-defined.</li>
-     * </ul>
+     * <p>This default implementation delegates to {@link #toList()} and then calls {@link List#toArray()}.</p>
      *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>For infinite sequences, does not terminate (implementation-defined if guarded).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(n).</p>
-     *
-     * @return array containing all elements
-     * @throws RuntimeException if enumeration fails or array creation is not supported (implementation-defined)
+     * @return an array containing all elements
+     * @throws RuntimeException if enumeration fails
      */
     @SuppressWarnings("unchecked")
     default T[] toArray() {
@@ -2645,16 +1930,7 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Materializes the sequence into a {@link Set}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Enumerates the entire sequence and inserts elements into a set.</li>
-     *   <li>Set type / ordering are implementation-defined (e.g., {@link java.util.HashSet}).</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical hash-set: Time O(n), Space O(n).</p>
-     *
-     * @return set containing all elements
+     * @return a set containing all elements
      * @throws RuntimeException if enumeration fails
      */
     default Set<T> toSet() {
@@ -2664,32 +1940,32 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Materializes the sequence into a {@link List}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Enumerates the entire sequence and appends elements to a list in encounter order.</li>
-     * </ul>
+     * <h3>Example</h3>
+     * <pre>{@code
+     * List<T> list = seq.toList();
+     * }</pre>
      *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n). Space: O(n).</p>
-     *
-     * @return list containing all elements
+     * @return a list containing all elements in encounter order
      * @throws RuntimeException if enumeration fails
      */
-    List<T> toList();
+    default List<T> toList() {
+        List<T> list = new ArrayList<>();
+        try (Enumerator<T> enumerator = enumerator()) {
+            while (enumerator.moveNext()) {
+                T current = enumerator.current();
+                list.add(current);
+            }
+        }
+        return list;
+    }
 
     /**
      * Converts this sequence to a Java {@link Stream}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>The returned stream may be single-use depending on implementation (e.g., backed by an enumerator).</li>
-     *   <li>Closing behavior is implementation-defined.</li>
-     * </ul>
+     * <p>The returned stream may be single-use depending on implementation details.
+     * Closing the stream triggers {@link Enumerator#close()}.</p>
      *
-     * <h3>Complexity</h3>
-     * <p>Creation: O(1) typical. Enumeration cost is paid by stream terminal operations.</p>
-     *
-     * @return stream view of this sequence
+     * @return a stream view of this sequence
      * @throws RuntimeException if the stream cannot be created (implementation-defined)
      */
     default Stream<T> toStream() {
@@ -2701,155 +1977,113 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Unions this sequence with {@code other}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Yields elements that appear in either sequence.</li>
-     *   <li>Typical behavior yields distinct results (set union), but multiplicity is implementation-defined unless specified.</li>
-     *   <li>Typical behavior preserves first occurrence encounter order.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n + m), Space O(n + m) or O(k).</p>
-     *
-     * @param other other sequence
-     * @return union
+     * @param other the other sequence
+     * @return union result (semantics are implementation-defined)
      * @throws NullPointerException if {@code other} is {@code null}
      * @throws RuntimeException if enumeration fails
      */
-    Enumerable<T> union(Enumerable<? extends T> other);
+    default Enumerable<T> union(Enumerable<? extends T> other) {
+        return Union.union(this, other);
+    }
 
     /**
      * Unions this sequence with {@code other} using comparator-defined equality.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Equality is {@code comparator.compare(a, b) == 0}.</li>
-     *   <li>Ordering of results is implementation-defined.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O((n + m) log (n + m)), Space O(k).</p>
-     *
-     * @param other other sequence
+     * @param other the other sequence
      * @param comparator comparator defining equality
-     * @return union
+     * @return union result
      * @throws NullPointerException if {@code other} or {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or comparator throws
      */
-    Enumerable<T> union(Enumerable<? extends T> other, Comparator<? super T> comparator);
+    default Enumerable<T> union(Enumerable<? extends T> other, Comparator<? super T> comparator) {
+        return Union.union(this, other, comparator);
+    }
 
     /**
-     * Unions by extracted key (key equality without explicit comparator).
+     * Unions by extracted key (key equality uses {@link Object#equals(Object)} / {@link Object#hashCode()}).
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Extracts key from each element via {@code keyExtractor} and unions by key.</li>
-     *   <li>Typical key equality uses {@link Object#equals(Object)}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O(n + m), Space O(k).</p>
-     *
-     * @param other other sequence
-     * @param keyExtractor key extractor
+     * @param other the other sequence
+     * @param keyExtractor extracts key from elements
      * @param <K> key type
-     * @return union by key
+     * @return union-by-key result
      * @throws NullPointerException if {@code other} or {@code keyExtractor} is {@code null}
      * @throws RuntimeException if enumeration fails or keyExtractor throws
      */
-    <K> Enumerable<T> unionBy(Enumerable<? extends T> other, Function<? super T, ? extends K> keyExtractor);
+    default <K> Enumerable<T> unionBy(
+        Enumerable<? extends T> other, Function<? super T, ? extends K> keyExtractor
+    ) {
+        return Union.unionBy(this, other, keyExtractor);
+    }
 
     /**
-     * Unions by extracted key using a key comparator.
+     * Unions by extracted key using comparator-defined key equality.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Key equality is {@code comparator.compare(k1, k2) == 0}.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Typical: Time O((n + m) log k), Space O(k).</p>
-     *
-     * @param other other sequence
-     * @param keyExtractor key extractor
-     * @param comparator key comparator
+     * @param other the other sequence
+     * @param keyExtractor extracts key from elements
+     * @param comparator comparator defining key equality
      * @param <K> key type
-     * @return union by key
+     * @return union-by-key result
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    <K> Enumerable<T> unionBy(
+    default <K> Enumerable<T> unionBy(
         Enumerable<? extends T> other,
         Function<? super T, ? extends K> keyExtractor,
         Comparator<? super K> comparator
-    );
+    ) {
+        return Union.unionBy(this, other, keyExtractor, comparator);
+    }
 
     /**
      * Filters elements by {@code predicate}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Yields only elements where {@code predicate.test(x)} is {@code true}.</li>
-     *   <li>Typically lazy.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(n) when fully enumerated. Space: O(1) additional.</p>
-     *
-     * @param predicate predicate
-     * @return filtered sequence
+     * @param predicate predicate to test elements
+     * @return a filtered sequence
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or predicate throws
      */
-    Enumerable<T> where(Predicate<? super T> predicate);
+    default Enumerable<T> where(Predicate<? super T> predicate) {
+        return Where.where(this, predicate);
+    }
 
     /**
-     * Zips with {@code other} into pairs (thisElement, otherElement).
+     * Zips this sequence with {@code other} into pairs {@code (thisElement, otherElement)}.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>Typical behavior stops when either sequence ends.</li>
-     *   <li>Pairs are emitted in encounter order.</li>
-     * </ul>
-     *
-     * <h3>Boundary</h3>
-     * <ul>
-     *   <li>If either sequence is empty, yields empty result.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(min(n, m)). Space: O(1).</p>
-     *
-     * @param other other sequence
-     * @param <R> other element type
-     * @return zipped pairs
+     * @param other the other sequence
+     * @param <R> the element type of {@code other}
+     * @return a sequence of pairs
      * @throws NullPointerException if {@code other} is {@code null}
      * @throws RuntimeException if enumeration fails
      */
-    <R> Enumerable<Pair<T, R>> zip(Enumerable<? extends R> other);
+    default <R> Enumerable<Pair<T, R>> zip(Enumerable<? extends R> other) {
+        return Zip.zip(this, other);
+    }
 
     /**
-     * Zips with {@code other} using a result mapping function.
+     * Zips this sequence with {@code other} using a result mapping function.
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>For each index i, yields {@code resultMapping.apply(this[i], other[i])}.</li>
-     *   <li>Typical behavior stops when either sequence ends.</li>
-     * </ul>
-     *
-     * <h3>Complexity</h3>
-     * <p>Time: O(min(n, m)). Space: O(1).</p>
-     *
-     * @param other other sequence
-     * @param resultMapping maps paired elements to result
-     * @param <O> other element type
-     * @param <R> result element type
-     * @return zipped mapped sequence
+     * @param other the other sequence
+     * @param resultMapping maps paired elements to a result element
+     * @param <O> the element type of {@code other}
+     * @param <R> the result element type
+     * @return a sequence of mapped results
      * @throws NullPointerException if {@code other} or {@code resultMapping} is {@code null}
      * @throws RuntimeException if enumeration fails or resultMapping throws
      */
-    <O, R> Enumerable<R> zip(
+    default <O, R> Enumerable<R> zip(
         Enumerable<? extends O> other,
         BinFunction<? super T, ? super O, ? extends R> resultMapping
-    );
+    ) {
+        return Zip.zip(this, other, resultMapping);
+    }
+
+    @Override
+    default void forEach(Consumer<? super T> action) {
+        try (Enumerator<T> enumerator = enumerator()) {
+            while (enumerator.moveNext()) {
+                T current = enumerator.current();
+                action.accept(current);
+            }
+        }
+    }
 }
