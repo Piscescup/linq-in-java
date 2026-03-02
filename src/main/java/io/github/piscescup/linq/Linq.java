@@ -52,7 +52,7 @@ public class Linq<T> implements Enumerable<T> {
      *
      * <p>Useful if you want a canonical concrete type as the chain root.</p>
      */
-    public static <T> Linq<T> from(Enumerable<T> source) {
+    public static <T> Enumerable<T> from(Enumerable<T> source) {
         NullCheck.requireNonNull(source);
         return new Linq<>(source::enumerator);
     }
@@ -65,7 +65,7 @@ public class Linq<T> implements Enumerable<T> {
      * @return a sequence enumerating the iterable
      * @throws NullPointerException if {@code iterable} is null
      */
-    public static <T> Linq<T> fromIterable(Iterable<? extends T> iterable) {
+    public static <T> Enumerable<T> fromIterable(Iterable<? extends T> iterable) {
         NullCheck.requireNonNull(iterable);
         return new Linq<>(() -> new IterableEnumerator<>(iterable));
     }
@@ -82,7 +82,7 @@ public class Linq<T> implements Enumerable<T> {
      * @return a sequence enumerating iterators produced by {@code iteratorFactory}
      * @throws NullPointerException if {@code iteratorFactory} is null
      */
-    public static <T> Linq<T> fromIterator(Supplier<? extends Iterator<? extends T>> iteratorFactory) {
+    public static <T> Enumerable<T> fromIterator(Supplier<? extends Iterator<? extends T>> iteratorFactory) {
         NullCheck.requireNonNull(iteratorFactory);
         return new Linq<>(() -> new IteratorEnumerator<>(iteratorFactory.get()));
     }
@@ -96,7 +96,7 @@ public class Linq<T> implements Enumerable<T> {
      * @throws NullPointerException if {@code items} is null
      */
     @SafeVarargs
-    public static <T> Linq<T> of(T... items) {
+    public static <T> Enumerable<T> of(T... items) {
         NullCheck.requireNonNull(items);
         return new Linq<>(() -> new ArrayEnumerator<>(items));
     }
