@@ -264,7 +264,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code keyExtractor}, {@code resultMapping}, or {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or any supplied function/comparator throws
      */
-    default <K, R> Enumerable<Pair<K, R>> aggregateBy(
+    default <K, R> Enumerable<Pair<K, R>> aggregateBySeed(
         R seed,
         Function<? super T, ? extends K> keyExtractor,
         BinFunction<? super R, ? super T, ? extends R> resultMapping,
@@ -337,9 +337,8 @@ public interface Enumerable<T> extends Iterable<T> {
      * @return this sequence as an {@link Enumerable}
      * @throws RuntimeException if adaptation fails (implementation-defined)
      */
-    @SuppressWarnings("unchecked")
     default Enumerable<T> toEnumerable() {
-        return (Enumerable<T>) this;
+        return this;
     }
 
     /**
@@ -714,6 +713,11 @@ public interface Enumerable<T> extends Iterable<T> {
      *
      * <p>This overload uses {@code null} as the default element.</p>
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> safe = seq.defaultIfEmpty(); // yields null if empty
+     * }</pre>
+     *
      * @return a sequence that yields {@code null} if empty, otherwise yields original elements
      * @throws RuntimeException if enumeration fails
      */
@@ -741,6 +745,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns a sequence with duplicate elements removed using {@link Object#equals(Object)} / {@link Object#hashCode()}.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> distinct = numbers.distinct();
+     * }</pre>
+     *
      * @return a distinct sequence
      * @throws RuntimeException if enumeration fails
      */
@@ -752,6 +761,11 @@ public interface Enumerable<T> extends Iterable<T> {
      * Returns a sequence with duplicate elements removed using comparator-defined equality.
      *
      * <p>Equality is defined as {@code comparator.compare(a, b) == 0}.</p>
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> distinct = words.distinct(String.CASE_INSENSITIVE_ORDER);
+     * }</pre>
      *
      * @param comparator comparator defining equality
      * @return a distinct sequence
@@ -765,6 +779,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns a sequence with duplicate elements removed by extracted key using key equality
      * ({@link Object#equals(Object)} / {@link Object#hashCode()}).
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Person> distinctByAge = people.distinctBy(Person::getAge);
+     * }</pre>
      *
      * @param keyExtractor extracts the key for each element
      * @param <K> the key type
@@ -780,6 +799,11 @@ public interface Enumerable<T> extends Iterable<T> {
      * Returns a sequence with duplicate elements removed by extracted key using comparator-defined key equality.
      *
      * <p>Key equality is defined as {@code comparator.compare(k1, k2) == 0}.</p>
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Person> distinctByName = people.distinctBy(Person::getName, String.CASE_INSENSITIVE_ORDER);
+     * }</pre>
      *
      * @param keyExtractor extracts the key for each element
      * @param comparator comparator defining key equality
@@ -798,6 +822,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns the element at the specified 0-based index.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * String element = seq.elementAt(2); // third element
+     * }</pre>
+     *
      * @param index 0-based index
      * @return the element at {@code index}
      * @throws IndexOutOfBoundsException if {@code index < 0} or the sequence has fewer than {@code index + 1} elements
@@ -810,6 +839,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns the element at the specified 0-based index, or {@code defaultElement} if out of range.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * String element = seq.elementAtDefault(10, "default");
+     * }</pre>
+     *
      * @param index 0-based index
      * @param defaultElement value returned when the index is out of range
      * @return element at {@code index}, or {@code defaultElement} if out of range
@@ -821,6 +855,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Produces elements of this sequence that are not present in {@code other}.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> result = numbers1.except(numbers2);
+     * }</pre>
      *
      * @param other sequence to exclude
      * @return elements not present in {@code other}
@@ -836,6 +875,11 @@ public interface Enumerable<T> extends Iterable<T> {
      *
      * <p>Equality is defined as {@code comparator.compare(a, b) == 0}.</p>
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> result = words1.except(words2, String.CASE_INSENSITIVE_ORDER);
+     * }</pre>
+     *
      * @param other sequence to exclude
      * @param comparator comparator defining equality
      * @return elements not present in {@code other}
@@ -849,6 +893,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Produces elements whose extracted keys do not appear in {@code other}'s extracted keys.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Person> result = people.exceptBy(others, Person::getId);
+     * }</pre>
+     *
      * @param other other sequence
      * @param keyExtractor extracts key from elements of this sequence
      * @param <K> key type
@@ -857,7 +906,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws RuntimeException if enumeration fails or {@code keyExtractor} throws
      */
     default <K> Enumerable<T> exceptBy(
-        Enumerable<? extends T> other,
+        Enumerable<? extends K> other,
         Function<? super T, ? extends K> keyExtractor
     ) {
         return Except.exceptBy(this, other, keyExtractor);
@@ -866,6 +915,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Produces elements whose extracted keys do not appear in {@code other}'s extracted keys,
      * using comparator-defined key equality.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Person> result = people.exceptBy(others, Person::getName, String.CASE_INSENSITIVE_ORDER);
+     * }</pre>
      *
      * @param other other sequence
      * @param keyExtractor extracts key from elements of this sequence
@@ -876,7 +930,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
     default <K> Enumerable<T> exceptBy(
-        Enumerable<? extends T> other,
+        Enumerable<? extends K> other,
         Function<? super T, ? extends K> keyExtractor,
         Comparator<? super K> comparator
     ) {
@@ -885,6 +939,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Returns the first element of the sequence.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * String first = seq.first();
+     * }</pre>
      *
      * @return the first element
      * @throws NoSuchElementException if the sequence is empty
@@ -896,6 +955,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Returns the first element that matches {@code predicate}.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * int firstEven = numbers.first(n -> n % 2 == 0);
+     * }</pre>
      *
      * @param predicate predicate to match
      * @return the first matching element
@@ -910,6 +974,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns the first element, or {@code defaultElement} if the sequence is empty.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * String first = seq.firstOrDefault("none");
+     * }</pre>
+     *
      * @param defaultElement value returned when empty
      * @return the first element, or {@code defaultElement} if empty
      * @throws RuntimeException if enumeration fails
@@ -920,6 +989,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Returns the first element that matches {@code predicate}, or {@code defaultElement} if none matches.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * int firstEven = numbers.firstOrDefault(-1, n -> n % 2 == 0);
+     * }</pre>
      *
      * @param defaultElement value returned when no match exists
      * @param predicate predicate to match
@@ -954,7 +1028,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code keyExtractor}, {@code elementSelector}, or {@code resultMapping} is {@code null}
      * @throws RuntimeException if enumeration fails or any supplied function throws
      */
-    default <K, E, R> Enumerable<R> groupBy(
+    default <K, E, R> Enumerable<R> groupResultBy(
         Function<? super T, ? extends K> keyExtractor,
         Function<? super T, ? extends E> elementSelector,
         BinFunction<? super K, ? super Enumerable<E>, ? extends R> resultMapping
@@ -964,6 +1038,16 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Groups elements by key using an explicit comparator, maps each element to {@code E}, then maps each group to {@code R}.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> results = people.groupBy(
+     *     Person::getLastName,
+     *     Person::getFirstName,
+     *     (last, firstNames) -> last + ": " + firstNames.toList(),
+     *     String.CASE_INSENSITIVE_ORDER
+     * );
+     * }</pre>
      *
      * @param keyExtractor extracts the key for each element
      * @param elementSelector maps each element to group element type {@code E}
@@ -976,7 +1060,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    default <K, E, R> Enumerable<R> groupBy(
+    default <K, E, R> Enumerable<R> groupResultBy(
         Function<? super T, ? extends K> keyExtractor,
         Function<? super T, ? extends E> elementSelector,
         BinFunction<? super K, ? super Enumerable<E>, ? extends R> resultMapping,
@@ -987,6 +1071,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Groups elements into {@link Groupable} objects (key + group sequence), mapping each element to {@code E}.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Groupable<Integer, String>> groups = words.groupBy(String::length, String::toLowerCase);
+     * }</pre>
      *
      * @param keyExtractor extracts the key for each element
      * @param elementSelector maps each element to group element type {@code E}
@@ -1006,6 +1095,15 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Groups elements into {@link Groupable} objects (key + group sequence) using an explicit key comparator,
      * mapping each element to {@code E}.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Groupable<String, String>> groups = people.groupBy(
+     *     Person::getLastName,
+     *     Person::getFirstName,
+     *     String.CASE_INSENSITIVE_ORDER
+     * );
+     * }</pre>
      *
      * @param keyExtractor extracts the key for each element
      * @param elementSelector maps each element to group element type {@code E}
@@ -1027,6 +1125,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Groups elements by key and maps each group to {@code R} (group elements remain {@code T}).
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> countsByLength = words.groupBy(String::length, (len, group) -> group.count());
+     * }</pre>
+     *
      * @param keyExtractor extracts the key for each element
      * @param resultMapping maps {@code (key, groupEnumerable)} to the result element
      * @param <K> key type
@@ -1035,7 +1138,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code keyExtractor} or {@code resultMapping} is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function throws
      */
-    default <K, R> Enumerable<R> groupBy(
+    default <K, R> Enumerable<R> groupResultBy(
         Function<? super T, ? extends K> keyExtractor,
         BinFunction<? super K, ? super Enumerable<T>, ? extends R> resultMapping
     ) {
@@ -1044,6 +1147,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Groups elements by key using a comparator and maps each group to {@code R} (group elements remain {@code T}).
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> countsByLength = words.groupBy(String::length, (len, group) -> group.count(), Comparator.naturalOrder());
+     * }</pre>
      *
      * @param keyExtractor extracts the key for each element
      * @param resultMapping maps {@code (key, groupEnumerable)} to the result element
@@ -1054,7 +1162,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    default <K, R> Enumerable<R> groupBy(
+    default <K, R> Enumerable<R> groupResultBy(
         Function<? super T, ? extends K> keyExtractor,
         BinFunction<? super K, ? super Enumerable<T>, ? extends R> resultMapping,
         Comparator<? super K> comparator
@@ -1064,6 +1172,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Groups elements into {@link Groupable} objects (key + group), using original element type {@code T}.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Groupable<Integer, String>> groups = words.groupBy(String::length);
+     * }</pre>
      *
      * @param keyExtractor extracts the key for each element
      * @param <K> key type
@@ -1078,6 +1191,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Groups elements into {@link Groupable} objects (key + group) using an explicit key comparator,
      * using original element type {@code T}.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Groupable<String, Person>> groups = people.groupBy(Person::getLastName, String.CASE_INSENSITIVE_ORDER);
+     * }</pre>
      *
      * @param keyExtractor extracts the key for each element
      * @param comparator comparator defining key equality/ordering
@@ -1098,6 +1216,15 @@ public interface Enumerable<T> extends Iterable<T> {
      *
      * <p>For each element {@code t} in this sequence, finds all elements {@code o} in {@code other}
      * whose keys match, and produces a result {@code R} via {@code resultMapping}.</p>
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> results = customers.groupJoin(orders,
+     *     Customer::getId,
+     *     Order::getCustomerId,
+     *     (c, os) -> c.getName() + " has " + os.count() + " orders"
+     * );
+     * }</pre>
      *
      * @param other the other sequence
      * @param selfKeyExtractor extracts the key from elements of this sequence
@@ -1121,6 +1248,16 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Group-joins this sequence with {@code other} using an explicit key comparator.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> results = customers.groupJoin(orders,
+     *     Customer::getId,
+     *     Order::getCustomerId,
+     *     (c, os) -> c.getName() + " has " + os.count() + " orders",
+     *     Comparator.naturalOrder()
+     * );
+     * }</pre>
      *
      * @param other the other sequence
      * @param selfKeyExtractor extracts the key from elements of this sequence
@@ -1147,6 +1284,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns the intersection of this sequence and {@code other}.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> result = numbers1.intersect(numbers2);
+     * }</pre>
+     *
      * @param other the other sequence
      * @return elements that appear in both sequences (semantics are implementation-defined)
      * @throws NullPointerException if {@code other} is {@code null}
@@ -1158,6 +1300,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Returns the intersection of this sequence and {@code other} using comparator-defined equality.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> result = words1.intersect(words2, String.CASE_INSENSITIVE_ORDER);
+     * }</pre>
      *
      * @param other the other sequence
      * @param comparator comparator defining equality
@@ -1171,6 +1318,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Returns elements whose extracted key appears in {@code other}.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Person> result = people.intersectBy(ids, Person::getId);
+     * }</pre>
      *
      * @param other keys to keep
      * @param keyExtractor extracts key from this sequence elements
@@ -1188,6 +1340,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Returns elements whose extracted key appears in {@code other}, using comparator-defined key equality.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Person> result = people.intersectBy(names, Person::getName, String.CASE_INSENSITIVE_ORDER);
+     * }</pre>
      *
      * @param other keys to keep
      * @param keyExtractor extracts key from this sequence elements
@@ -1209,6 +1366,15 @@ public interface Enumerable<T> extends Iterable<T> {
      * Joins this sequence with {@code other} (LINQ {@code Join} semantics).
      *
      * <p>For each matching pair {@code (t, o)} whose keys match, yields {@code resultMapping.apply(t, o)}.</p>
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> results = customers.join(orders,
+     *     Customer::getId,
+     *     Order::getCustomerId,
+     *     (c, o) -> c.getName() + " bought " + o.getProduct()
+     * );
+     * }</pre>
      *
      * @param other the other sequence
      * @param selfKeyExtractor extracts key from elements of this sequence
@@ -1232,6 +1398,16 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Joins this sequence with {@code other} using comparator-defined key equality.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> results = customers.join(orders,
+     *     Customer::getId,
+     *     Order::getCustomerId,
+     *     (c, o) -> c.getName() + " bought " + o.getProduct(),
+     *     Comparator.naturalOrder()
+     * );
+     * }</pre>
      *
      * @param other the other sequence
      * @param selfKeyExtractor extracts key from elements of this sequence
@@ -1258,6 +1434,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns the last element of the sequence.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * String last = seq.last();
+     * }</pre>
+     *
      * @return the last element
      * @throws NoSuchElementException if the sequence is empty
      * @throws RuntimeException if enumeration fails
@@ -1268,6 +1449,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Returns the last element that matches {@code predicate}.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * int lastEven = numbers.last(n -> n % 2 == 0);
+     * }</pre>
      *
      * @param predicate predicate to match
      * @return the last matching element
@@ -1282,6 +1468,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns the last element, or {@code defaultElement} if the sequence is empty.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * String last = seq.lastOrDefault("none");
+     * }</pre>
+     *
      * @param defaultElement value returned when empty
      * @return the last element, or {@code defaultElement} if empty
      * @throws RuntimeException if enumeration fails
@@ -1292,6 +1483,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Returns the last element that matches {@code predicate}, or {@code defaultElement} if none matches.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * int lastEven = numbers.lastOrDefault(n -> n % 2 == 0, -1);
+     * }</pre>
      *
      * @param predicate predicate to match
      * @param defaultElement value returned when no match exists
@@ -1308,6 +1504,15 @@ public interface Enumerable<T> extends Iterable<T> {
      *
      * <p>For each element {@code t} in this sequence, yields one result per match in {@code other}.
      * If no match exists, yields exactly one result with {@code o = null}.</p>
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> results = customers.leftJoin(orders,
+     *     Customer::getId,
+     *     Order::getCustomerId,
+     *     (c, o) -> c.getName() + " bought " + (o == null ? "nothing" : o.getProduct())
+     * );
+     * }</pre>
      *
      * @param other the other sequence
      * @param selfKeyExtractor extracts key from elements of this sequence
@@ -1331,6 +1536,16 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Left-joins this sequence with {@code other} using comparator-defined key equality.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> results = customers.leftJoin(orders,
+     *     Customer::getId,
+     *     Order::getCustomerId,
+     *     (c, o) -> c.getName() + " bought " + (o == null ? "nothing" : o.getProduct()),
+     *     Comparator.naturalOrder()
+     * );
+     * }</pre>
      *
      * @param other the other sequence
      * @param selfKeyExtractor extracts key from elements of this sequence
@@ -1357,6 +1572,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns the maximum projected {@code int} value.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * int maxAge = people.maxByInt(Person::getAge);
+     * }</pre>
+     *
      * @param intMapping mapping from elements to {@code int}
      * @return the maximum projected value
      * @throws NullPointerException if {@code intMapping} is {@code null}
@@ -1369,6 +1589,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Returns the maximum projected {@code long} value.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * long maxId = people.maxByLong(Person::getId);
+     * }</pre>
      *
      * @param longMapping mapping from elements to {@code long}
      * @return the maximum projected value
@@ -1383,6 +1608,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns the maximum projected {@code double} value.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * double maxSalary = people.maxByDouble(Person::getSalary);
+     * }</pre>
+     *
      * @param doubleMapping mapping from elements to {@code double}
      * @return the maximum projected value
      * @throws NullPointerException if {@code doubleMapping} is {@code null}
@@ -1395,6 +1625,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Returns the element whose extracted key is maximal, using the provided comparator.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Person oldest = people.maxBy(Person::getAge, Comparator.naturalOrder());
+     * }</pre>
      *
      * @param keyExtractor extracts a key from each element
      * @param comparator comparator for keys
@@ -1411,6 +1646,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns the element whose extracted key is maximal, using natural key ordering.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Person oldest = people.maxBy(Person::getAge);
+     * }</pre>
+     *
      * @param keyExtractor extracts a key from each element
      * @param <K> key type (must be {@link Comparable})
      * @return the element with the maximum key
@@ -1426,6 +1666,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns the minimum projected {@code int} value.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * int minAge = people.minByInt(Person::getAge);
+     * }</pre>
+     *
      * @param intMapping mapping from elements to {@code int}
      * @return the minimum projected value
      * @throws NullPointerException if {@code intMapping} is {@code null}
@@ -1438,6 +1683,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Returns the minimum projected {@code long} value.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * long minId = people.minByLong(Person::getId);
+     * }</pre>
      *
      * @param longMapping mapping from elements to {@code long}
      * @return the minimum projected value
@@ -1452,6 +1702,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns the minimum projected {@code double} value.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * double minSalary = people.minByDouble(Person::getSalary);
+     * }</pre>
+     *
      * @param doubleMapping mapping from elements to {@code double}
      * @return the minimum projected value
      * @throws NullPointerException if {@code doubleMapping} is {@code null}
@@ -1464,6 +1719,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Returns the element whose extracted key is minimal, using the provided comparator.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Person youngest = people.minBy(Person::getAge, Comparator.naturalOrder());
+     * }</pre>
      *
      * @param keyExtractor extracts a key from each element
      * @param comparator comparator for keys
@@ -1479,6 +1739,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Returns the element whose extracted key is minimal, using natural key ordering.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Person youngest = people.minBy(Person::getAge);
+     * }</pre>
      *
      * @param keyExtractor extracts a key from each element
      * @param <K> key type (must be {@link Comparable})
@@ -1497,6 +1762,11 @@ public interface Enumerable<T> extends Iterable<T> {
      *
      * <p>Equivalent to: {@code where(clazz::isInstance).select(clazz::cast)}.</p>
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> strings = mixed.extractTo(String.class);
+     * }</pre>
+     *
      * @param clazz the desired runtime type
      * @param <C> the desired element type
      * @return a sequence containing only elements that are instances of {@code clazz}
@@ -1510,6 +1780,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Orders elements using natural ordering.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * OrderedEnumerable<Integer> sorted = numbers.order();
+     * }</pre>
+     *
      * @return an ordered sequence
      * @throws ClassCastException if elements are not mutually comparable (implementation-defined)
      * @throws RuntimeException if ordering cannot be performed (implementation-defined)
@@ -1520,6 +1795,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Orders elements using the provided comparator.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * OrderedEnumerable<String> sorted = words.order(String.CASE_INSENSITIVE_ORDER);
+     * }</pre>
      *
      * @param comparator comparator to use
      * @return an ordered sequence
@@ -1532,6 +1812,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Orders elements by extracted key using natural key ordering.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * OrderedEnumerable<Person> sorted = people.orderBy(Person::getAge);
+     * }</pre>
      *
      * @param keyExtractor extracts the key
      * @param <K> key type
@@ -1547,6 +1832,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Orders elements by extracted key using the provided key comparator.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * OrderedEnumerable<Person> sorted = people.orderBy(Person::getName, String.CASE_INSENSITIVE_ORDER);
+     * }</pre>
+     *
      * @param keyExtractor extracts the key
      * @param comparator comparator for keys
      * @param <K> key type
@@ -1561,6 +1851,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Orders elements descending using natural ordering.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * OrderedEnumerable<Integer> sorted = numbers.orderDescending();
+     * }</pre>
+     *
      * @return a descending-ordered sequence
      * @throws ClassCastException if elements are not mutually comparable (implementation-defined)
      * @throws RuntimeException if ordering cannot be performed
@@ -1571,6 +1866,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Orders elements descending using the provided comparator.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * OrderedEnumerable<String> sorted = words.orderDescending(String.CASE_INSENSITIVE_ORDER);
+     * }</pre>
      *
      * @param comparator comparator to use
      * @return a descending-ordered sequence
@@ -1583,6 +1883,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Orders elements descending by extracted key using natural key ordering.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * OrderedEnumerable<Person> sorted = people.orderDescendingBy(Person::getAge);
+     * }</pre>
      *
      * @param keyExtractor extracts the key
      * @param <K> key type
@@ -1597,6 +1902,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Orders elements descending by extracted key using the provided key comparator.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * OrderedEnumerable<Person> sorted = people.orderDescendingBy(Person::getName, String.CASE_INSENSITIVE_ORDER);
+     * }</pre>
      *
      * @param keyExtractor extracts the key
      * @param comparator comparator for keys
@@ -1615,6 +1925,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns a sequence that yields {@code element} followed by all elements of this sequence.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> withZero = numbers.prepend(0);
+     * }</pre>
+     *
      * @param element the element to prepend
      * @return a new sequence beginning with {@code element}
      * @throws RuntimeException if the new sequence cannot be created (implementation-defined)
@@ -1625,6 +1940,15 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Right-joins this sequence with {@code other} (conceptually {@code other LEFT JOIN this}).
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> results = customers.rightJoin(orders,
+     *     Customer::getId,
+     *     Order::getCustomerId,
+     *     (c, o) -> o.getProduct() + " bought by " + (c == null ? "unknown" : c.getName())
+     * );
+     * }</pre>
      *
      * @param other the other sequence
      * @param selfKeyExtractor extracts key from elements of this sequence
@@ -1648,6 +1972,16 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Right-joins this sequence with {@code other} using comparator-defined key equality.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> results = customers.rightJoin(orders,
+     *     Customer::getId,
+     *     Order::getCustomerId,
+     *     (c, o) -> o.getProduct() + " bought by " + (c == null ? "unknown" : c.getName()),
+     *     Comparator.naturalOrder()
+     * );
+     * }</pre>
      *
      * @param other the other sequence
      * @param selfKeyExtractor extracts key from elements of this sequence
@@ -1674,6 +2008,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Projects each element using {@code selector}.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> lengths = words.select(String::length);
+     * }</pre>
+     *
      * @param selector projection function
      * @param <R> result element type
      * @return a projected sequence
@@ -1686,6 +2025,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Projects each element into an inner sequence and flattens the result, then maps {@code (outer, inner)} to {@code R}.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> words = sentences.selectMany(s -> s.split("\\s+"), (s, w) -> w);
+     * }</pre>
      *
      * @param collectionSelector maps each outer element to an inner sequence
      * @param resultSelector maps {@code (outer, innerElement)} to result element
@@ -1705,6 +2049,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Projects each element into an inner sequence and flattens the result (identity mapping).
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> words = sentences.selectMany(s -> s.split("\\s+"));
+     * }</pre>
+     *
      * @param selector maps each element to an inner sequence
      * @param <C> inner element type
      * @return a flattened sequence
@@ -1720,6 +2069,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns a shuffled sequence; {@code predicate} controls which elements participate.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> shuffled = numbers.shuffle(n -> n > 0);
+     * }</pre>
+     *
      * @param predicate predicate controlling which elements are shuffled
      * @return a shuffled sequence
      * @throws NullPointerException if {@code predicate} is {@code null}
@@ -1732,6 +2086,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns the only element of the sequence.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * String only = seq.single();
+     * }</pre>
+     *
      * @return the single element
      * @throws NoSuchElementException if the sequence is empty
      * @throws IllegalStateException if the sequence contains more than one element
@@ -1743,6 +2102,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Returns the only element that matches {@code predicate}.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * int onlyEven = numbers.single(n -> n % 2 == 0);
+     * }</pre>
      *
      * @param predicate predicate to match
      * @return the single matching element
@@ -1758,6 +2122,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns the single element, or {@code defaultElement} if empty; throws if more than one element exists.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * String only = seq.singleOrDefault("default");
+     * }</pre>
+     *
      * @param defaultElement value returned when empty
      * @return the single element, or {@code defaultElement} if empty
      * @throws IllegalStateException if the sequence contains more than one element
@@ -1770,6 +2139,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Returns the single element matching {@code predicate}, or {@code defaultElement} if none matches;
      * throws if more than one match exists.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * int onlyEven = numbers.singleOrDefault(n -> n % 2 == 0, -1);
+     * }</pre>
      *
      * @param predicate predicate to match
      * @param defaultElement value returned when no match exists
@@ -1785,6 +2159,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Skips the first {@code count} elements.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> afterFirstTwo = numbers.skip(2);
+     * }</pre>
+     *
      * @param count number of elements to skip (must be non-negative)
      * @return a sequence skipping the first {@code count} elements
      * @throws IllegalArgumentException if {@code count < 0}
@@ -1796,6 +2175,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Skips the last {@code count} elements.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> withoutLastTwo = numbers.skipLast(2);
+     * }</pre>
      *
      * @param count number of elements to skip from the end (must be non-negative)
      * @return a sequence without the last {@code count} elements
@@ -1809,6 +2193,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Skips elements while {@code predicate} is {@code true}.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> afterNegatives = numbers.skipWhile(n -> n < 0);
+     * }</pre>
+     *
      * @param predicate predicate to test
      * @return the remaining sequence after skipping the prefix
      * @throws NullPointerException if {@code predicate} is {@code null}
@@ -1820,6 +2209,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Skips elements while {@code predicate(element, index)} is {@code true}.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> afterFirstTwo = numbers.skipWhile((n, i) -> i < 2);
+     * }</pre>
      *
      * @param predicate predicate receiving {@code (element, index)}
      * @return the remaining sequence after skipping the prefix
@@ -1833,6 +2227,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Takes the first {@code count} elements.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> firstTwo = numbers.take(2);
+     * }</pre>
+     *
      * @param count number of elements to take (must be non-negative)
      * @return a sequence containing up to {@code count} elements
      * @throws IllegalArgumentException if {@code count < 0}
@@ -1844,6 +2243,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Takes the last {@code count} elements.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> lastTwo = numbers.takeLast(2);
+     * }</pre>
      *
      * @param count number of elements to take from the end (must be non-negative)
      * @return a sequence containing the last {@code count} elements (or fewer if shorter)
@@ -1857,6 +2261,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Takes elements while {@code predicate} is {@code true}.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> negatives = numbers.takeWhile(n -> n < 0);
+     * }</pre>
+     *
      * @param predicate predicate to test
      * @return a prefix sequence while predicate holds
      * @throws NullPointerException if {@code predicate} is {@code null}
@@ -1868,6 +2277,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Takes elements while {@code predicate(element, index)} is {@code true}.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> firstTwo = numbers.takeWhile((n, i) -> i < 2);
+     * }</pre>
      *
      * @param predicate predicate receiving {@code (element, index)}
      * @return a prefix sequence while predicate holds
@@ -1881,6 +2295,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Sums elements projected to {@code double}.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * double total = numbers.sum(n -> n * 1.5);
+     * }</pre>
+     *
      * @param doubleMapping mapping from elements to {@code double}
      * @return the sum of projected values
      * @throws NullPointerException if {@code doubleMapping} is {@code null}
@@ -1893,6 +2312,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Sums elements projected to {@code int} (accumulated as {@code long}).
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * long total = numbers.sum(n -> n);
+     * }</pre>
+     *
      * @param intMapping mapping from elements to {@code int}
      * @return the sum of projected values
      * @throws NullPointerException if {@code intMapping} is {@code null}
@@ -1904,6 +2328,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Sums elements projected to {@code long}.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * long total = numbers.sum(n -> (long)n);
+     * }</pre>
      *
      * @param longMapping mapping from elements to {@code long}
      * @return the sum of projected values
@@ -1919,6 +2348,11 @@ public interface Enumerable<T> extends Iterable<T> {
      *
      * <p>This default implementation delegates to {@link #toList()} and then calls {@link List#toArray()}.</p>
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * String[] array = seq.toArray();
+     * }</pre>
+     *
      * @return an array containing all elements
      * @throws RuntimeException if enumeration fails
      */
@@ -1929,6 +2363,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Materializes the sequence into a {@link Set}.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Set<String> set = seq.toSet();
+     * }</pre>
      *
      * @return a set containing all elements
      * @throws RuntimeException if enumeration fails
@@ -1965,6 +2404,11 @@ public interface Enumerable<T> extends Iterable<T> {
      * <p>The returned stream may be single-use depending on implementation details.
      * Closing the stream triggers {@link Enumerator#close()}.</p>
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Stream<String> stream = seq.toStream();
+     * }</pre>
+     *
      * @return a stream view of this sequence
      * @throws RuntimeException if the stream cannot be created (implementation-defined)
      */
@@ -1976,6 +2420,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Unions this sequence with {@code other}.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> union = numbers1.union(numbers2);
+     * }</pre>
      *
      * @param other the other sequence
      * @return union result (semantics are implementation-defined)
@@ -1989,6 +2438,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Unions this sequence with {@code other} using comparator-defined equality.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> union = words1.union(words2, String.CASE_INSENSITIVE_ORDER);
+     * }</pre>
+     *
      * @param other the other sequence
      * @param comparator comparator defining equality
      * @return union result
@@ -2001,6 +2455,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Unions by extracted key (key equality uses {@link Object#equals(Object)} / {@link Object#hashCode()}).
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Person> union = people1.unionBy(people2, Person::getId);
+     * }</pre>
      *
      * @param other the other sequence
      * @param keyExtractor extracts key from elements
@@ -2017,6 +2476,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Unions by extracted key using comparator-defined key equality.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Person> union = people1.unionBy(people2, Person::getName, String.CASE_INSENSITIVE_ORDER);
+     * }</pre>
      *
      * @param other the other sequence
      * @param keyExtractor extracts key from elements
@@ -2037,6 +2501,11 @@ public interface Enumerable<T> extends Iterable<T> {
     /**
      * Filters elements by {@code predicate}.
      *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Integer> evens = numbers.where(n -> n % 2 == 0);
+     * }</pre>
+     *
      * @param predicate predicate to test elements
      * @return a filtered sequence
      * @throws NullPointerException if {@code predicate} is {@code null}
@@ -2048,6 +2517,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Zips this sequence with {@code other} into pairs {@code (thisElement, otherElement)}.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<Pair<Integer, String>> zipped = numbers.zip(words);
+     * }</pre>
      *
      * @param other the other sequence
      * @param <R> the element type of {@code other}
@@ -2061,6 +2535,11 @@ public interface Enumerable<T> extends Iterable<T> {
 
     /**
      * Zips this sequence with {@code other} using a result mapping function.
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * Enumerable<String> zipped = numbers.zip(words, (n, s) -> n + ": " + s);
+     * }</pre>
      *
      * @param other the other sequence
      * @param resultMapping maps paired elements to a result element
@@ -2077,6 +2556,31 @@ public interface Enumerable<T> extends Iterable<T> {
         return Zip.zip(this, other, resultMapping);
     }
 
+    /**
+     * Performs the given action for each element of the {@code Iterable}
+     * until all elements have been processed or the action throws an
+     * exception.  Actions are performed in the order of iteration, if that
+     * order is specified.  Exceptions thrown by the action are relayed to the
+     * caller.
+     * <p>
+     * The behavior of this method is unspecified if the action performs
+     * side-effects that modify the underlying source of elements, unless an
+     * overriding class has specified a concurrent modification policy.
+     *
+     * <p>
+     *     Specially,
+     * </p>
+     *
+     * @implSpec
+     * <p>The default implementation behaves as if:
+     * <pre>{@code
+     *     for (T t : this)
+     *         action.accept(t);
+     * }</pre>
+     *
+     * @param action The action to be performed for each element
+     * @throws NullPointerException if the specified action is null
+     */
     @Override
     default void forEach(Consumer<? super T> action) {
         try (Enumerator<T> enumerator = enumerator()) {

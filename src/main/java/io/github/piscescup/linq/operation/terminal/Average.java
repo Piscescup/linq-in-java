@@ -45,7 +45,7 @@ public final class Average {
      * @throws NullPointerException if {@code source} is {@code null} or a null element is encountered
      * @throws IllegalArgumentException if the sequence is empty
      */
-    public static double intAverageNullable(Enumerable<Integer> source) {
+    public static double intAverageNonNull(Enumerable<Integer> source) {
         NullCheck.requireNonNull(source);
 
         long sum = 0L;
@@ -77,7 +77,7 @@ public final class Average {
      * @throws NullPointerException if {@code source} is {@code null}
      * @throws IllegalArgumentException if no non-null elements exist
      */
-    public static double intAverageNonNull(Enumerable<Integer> source) {
+    public static double intAverageNullable(Enumerable<Integer> source) {
         NullCheck.requireNonNull(source);
 
         long sum = 0L;
@@ -109,7 +109,7 @@ public final class Average {
      * @throws NullPointerException if {@code source} is {@code null} or a null element is encountered
      * @throws IllegalArgumentException if the sequence is empty
      */
-    public static double longAverageNullable(Enumerable<Long> source) {
+    public static double longAverageNonNull(Enumerable<Long> source) {
         NullCheck.requireNonNull(source);
 
         long sum = 0L;
@@ -141,7 +141,7 @@ public final class Average {
      * @throws NullPointerException if {@code source} is {@code null}
      * @throws IllegalArgumentException if no non-null elements exist
      */
-    public static double longAverageNonNull(Enumerable<Long> source) {
+    public static double longAverageNullable(Enumerable<Long> source) {
         NullCheck.requireNonNull(source);
 
         long sum = 0L;
@@ -173,7 +173,7 @@ public final class Average {
      * @throws NullPointerException if {@code source} is {@code null} or a null element is encountered
      * @throws IllegalArgumentException if the sequence is empty
      */
-    public static double floatAverageNullable(Enumerable<Float> source) {
+    public static double floatAverageNonNull(Enumerable<Float> source) {
         NullCheck.requireNonNull(source);
 
         double sum = 0.0;
@@ -205,7 +205,7 @@ public final class Average {
      * @throws NullPointerException if {@code source} is {@code null}
      * @throws IllegalArgumentException if no non-null elements exist
      */
-    public static double floatAverageNonNull(Enumerable<Float> source) {
+    public static double floatAverageNullable(Enumerable<Float> source) {
         NullCheck.requireNonNull(source);
 
         double sum = 0.0;
@@ -237,7 +237,7 @@ public final class Average {
      * @throws NullPointerException if {@code source} is {@code null} or a null element is encountered
      * @throws IllegalArgumentException if the sequence is empty
      */
-    public static double doubleAverageNullable(Enumerable<Double> source) {
+    public static double doubleAverageNonNull(Enumerable<Double> source) {
         NullCheck.requireNonNull(source);
 
         double sum = 0.0;
@@ -269,7 +269,7 @@ public final class Average {
      * @throws NullPointerException if {@code source} is {@code null}
      * @throws IllegalArgumentException if no non-null elements exist
      */
-    public static double doubleAverageNonNull(Enumerable<Double> source) {
+    public static double doubleAverageNullable(Enumerable<Double> source) {
         NullCheck.requireNonNull(source);
 
         double sum = 0.0;
@@ -304,7 +304,7 @@ public final class Average {
      * @throws NullPointerException if {@code source}, {@code context}, or an element is {@code null}
      * @throws IllegalArgumentException if the sequence is empty
      */
-    public static BigDecimal decimalAverageNullable(
+    public static BigDecimal decimalAverageNonNull(
         Enumerable<BigDecimal> source,
         MathContext context
     ) {
@@ -341,7 +341,7 @@ public final class Average {
      * @throws NullPointerException if {@code source} or {@code context} is {@code null}
      * @throws IllegalArgumentException if no non-null elements exist
      */
-    public static BigDecimal decimalAverageNonNull(
+    public static BigDecimal decimalAverageNullable(
         Enumerable<BigDecimal> source,
         MathContext context
     ) {

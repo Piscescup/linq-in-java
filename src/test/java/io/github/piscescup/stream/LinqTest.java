@@ -64,9 +64,8 @@ public class LinqTest {
         Enumerable<String> words = Linq.of("apple", "banana", "cherry", "avocado", "blueberry");
 
         List<Long> result = words
-            .groupBy(
+            .groupResultBy(
                 word -> word.charAt(0),
-                // (c,  es) -> es.count()
                 (Character c, Enumerable<String> es) -> es.count()
             )
             .toList();

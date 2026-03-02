@@ -84,9 +84,6 @@ public final class Except {
      * Returns distinct elements from {@code source} whose keys do not appear in {@code other},
      * using {@code equals/hashCode} on keys.
      *
-     * <p>
-     * Keys are extracted from both {@code source} and {@code other} using {@code keyExtractor}.
-     *
      * @param source source sequence
      * @param other  sequence whose keys are excluded
      * @param keyExtractor key selector for set comparison
@@ -96,7 +93,8 @@ public final class Except {
      * @throws NullPointerException if any argument is null
      */
     public static <T, K> Enumerable<T> exceptBy(
-        Enumerable<T> source, Enumerable<? extends T> other,
+        Enumerable<T> source,
+        Enumerable<? extends K> other,
         Function<? super T, ? extends K> keyExtractor
     ) {
         NullCheck.requireNonNull(source);
@@ -104,14 +102,9 @@ public final class Except {
         NullCheck.requireNonNull(keyExtractor);
         return new ExceptByEnumerable<>(source, other, keyExtractor, null, Mode.KEY_HASH);
     }
-
     /**
      * Returns distinct elements from {@code source} whose keys do not appear in {@code other},
      * using the provided comparator on keys (compare == 0 treated as equal).
-     *
-     * <p>
-     * Internally uses a {@link TreeSet}. Whether {@code null} keys are supported depends
-     * on the comparator.
      *
      * @param source source sequence
      * @param other  sequence whose keys are excluded
@@ -123,8 +116,10 @@ public final class Except {
      * @throws NullPointerException if any argument is null
      */
     public static <T, K> Enumerable<T> exceptBy(
-        Enumerable<T> source, Enumerable<? extends T> other,
-        Function<? super T, ? extends K> keyExtractor, Comparator<? super K> comparator
+        Enumerable<T> source,
+        Enumerable<? extends K> other,
+        Function<? super T, ? extends K> keyExtractor,
+        Comparator<? super K> comparator
     ) {
         NullCheck.requireNonNull(source);
         NullCheck.requireNonNull(other);
@@ -140,10 +135,6 @@ public final class Except {
         KEY_TREE
     }
 }
-
-/* ------------------------------------------------------------ */
-/* Enumerable implementations                                     */
-/* ------------------------------------------------------------ */
 
 class ExceptEnumerable<T> implements Enumerable<T> {
 
@@ -174,14 +165,14 @@ class ExceptEnumerable<T> implements Enumerable<T> {
 class ExceptByEnumerable<T, K> implements Enumerable<T> {
 
     private final Enumerable<T> source;
-    private final Enumerable<? extends T> other;
+    private final Enumerable<? extends K> other;
     private final Function<? super T, ? extends K> keyExtractor;
-    private final Comparator<? super K> comparator; // for tree mode
+    private final Comparator<? super K> comparator;
     private final Except.Mode mode;
 
     ExceptByEnumerable(
         Enumerable<T> source,
-        Enumerable<? extends T> other,
+        Enumerable<? extends K> other,
         Function<? super T, ? extends K> keyExtractor,
         Comparator<? super K> comparator,
         Except.Mode mode
@@ -198,10 +189,6 @@ class ExceptByEnumerable<T, K> implements Enumerable<T> {
         return new ExceptByEnumerator<>(source, other, keyExtractor, comparator, mode);
     }
 }
-
-/* ------------------------------------------------------------ */
-/* Enumerator implementations                                     */
-/* ------------------------------------------------------------ */
 
 class ExceptEnumerator<T> extends AbstractEnumerator<T> {
 
@@ -278,17 +265,17 @@ class ExceptEnumerator<T> extends AbstractEnumerator<T> {
 class ExceptByEnumerator<T, K> extends AbstractEnumerator<T> {
 
     private final Enumerable<T> source;
-    private final Enumerable<? extends T> other;
+    private final Enumerable<? extends K> other;
     private final Function<? super T, ? extends K> keyExtractor;
     private final Comparator<? super K> comparator;
     private final Except.Mode mode;
 
     private Enumerator<T> sourceEnumerator;
-    private Set<K> excludedKeys; // holds keys from other + seen result keys
+    private Set<K> excludedKeys;
 
     ExceptByEnumerator(
         Enumerable<T> source,
-        Enumerable<? extends T> other,
+        Enumerable<? extends K> other,
         Function<? super T, ? extends K> keyExtractor,
         Comparator<? super K> comparator,
         Except.Mode mode
@@ -302,6 +289,8 @@ class ExceptByEnumerator<T, K> extends AbstractEnumerator<T> {
 
     @Override
     protected boolean moveNextCore() {
+
+        // Lazy initialization
         if (sourceEnumerator == null) {
             excludedKeys = createKeySet();
             loadOtherKeysIntoExcluded(excludedKeys);
@@ -312,12 +301,12 @@ class ExceptByEnumerator<T, K> extends AbstractEnumerator<T> {
             T item = sourceEnumerator.current();
             K key = keyExtractor.apply(item);
 
-            // 与 except 相同的技巧：把 other keys + seen keys 都放在一个 set 里
             if (excludedKeys.add(key)) {
                 this.current = item;
                 return true;
             }
         }
+
         return false;
     }
 
@@ -325,15 +314,16 @@ class ExceptByEnumerator<T, K> extends AbstractEnumerator<T> {
         return switch (mode) {
             case KEY_HASH -> new HashSet<>();
             case KEY_TREE -> new TreeSet<>(comparator);
-            default -> throw new IllegalStateException("Invalid mode for ExceptByEnumerator: " + mode);
+            default -> throw new IllegalStateException(
+                "Invalid mode for ExceptByEnumerator: " + mode
+            );
         };
     }
 
     private void loadOtherKeysIntoExcluded(Set<K> excludedKeys) {
-        try (Enumerator<? extends T> e = other.enumerator()) {
+        try (Enumerator<? extends K> e = other.enumerator()) {
             while (e.moveNext()) {
-                T item = e.current();
-                excludedKeys.add(keyExtractor.apply(item));
+                excludedKeys.add(e.current());
             }
         }
     }
