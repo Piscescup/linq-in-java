@@ -1,6 +1,10 @@
 package io.github.piscescup.linq;
 
 import io.github.piscescup.linq.enumerator.*;
+import io.github.piscescup.linq.primitive.DoubleEnumerable;
+import io.github.piscescup.linq.primitive.FloatEnumerable;
+import io.github.piscescup.linq.primitive.IntEnumerable;
+import io.github.piscescup.linq.primitive.LongEnumerable;
 import io.github.piscescup.util.validation.NullCheck;
 
 import java.util.Iterator;
@@ -42,7 +46,7 @@ public class Linq<T> implements Enumerable<T> {
 
     private final Supplier<? extends Enumerator<T>> factory;
 
-    private Linq(Supplier<? extends Enumerator<T>> factory) {
+    protected Linq(Supplier<? extends Enumerator<T>> factory) {
         NullCheck.requireNonNull(factory);
         this.factory = factory;
     }
@@ -140,6 +144,39 @@ public class Linq<T> implements Enumerable<T> {
     }
 
     /**
+     * Generates a sequence containing the same element repeated a specified number of times.
+     *
+     * <p>The resulting sequence contains exactly {@code count} copies of {@code element}.</p>
+     *
+     * <h3>Example</h3>
+     *
+     * <pre>{@code
+     * List<String> result = Linq.repeat("A", 3).toList();
+     * // result = ["A", "A", "A"]
+     *
+     * List<String> empty = Linq.repeat("A", 0).toList();
+     * // result = []
+     * }</pre>
+     *
+     * <h3>Behavior</h3>
+     * <ul>
+     *   <li>If {@code count == 0}, the sequence is empty.</li>
+     *   <li>If {@code count < 0}, an {@link IllegalArgumentException} is thrown.</li>
+     *   <li>{@code element} may be {@code null}; null values are repeated as-is.</li>
+     * </ul>
+     *
+     * @param element the element to repeat (may be {@code null})
+     * @param count   the number of repetitions (must be non-negative)
+     * @param <T>     the element type
+     * @return a lazy {@link Enumerable} producing repeated elements
+     *
+     * @since 1.0.0
+     */
+    public static <T> Enumerable<T> repeat(T element, int count) {
+        return new Linq<>(() -> new RepeatEnumerator<>(element, count));
+    }
+
+    /**
      * Generates a sequence of consecutive {@link Integer} values.
      *
      * <p>The resulting sequence contains exactly {@code count} integers,
@@ -171,8 +208,8 @@ public class Linq<T> implements Enumerable<T> {
      *
      * @since 1.0.0
      */
-    public static Enumerable<Integer> range(int start, int count) {
-        return new Linq<>(() -> new RangeEnumerator(start, count));
+    public static IntEnumerable range(int start, int count) {
+        return new IntEnumerable.IntLinq(() -> new RangeEnumerator(start, count));
     }
 
     /**
@@ -212,42 +249,254 @@ public class Linq<T> implements Enumerable<T> {
      *
      * @since 1.0.0
      */
-    public static Enumerable<Integer> range(int start, int count, int step) {
-        return new Linq<>(() -> new RangeEnumerator(start, count, step));
+    public static IntEnumerable range(int start, int count, int step) {
+        return new IntEnumerable.IntLinq(() -> new RangeEnumerator(start, count, step));
     }
 
     /**
-     * Generates a sequence containing the same element repeated a specified number of times.
+     * Creates an {@link IntEnumerable} from the given {@code Integer} array.
      *
-     * <p>The resulting sequence contains exactly {@code count} copies of {@code element}.</p>
+     * <p>The input array is boxed into {@link Integer} elements. This method creates
+     * a new {@code Integer[]} and copies all values.</p>
      *
      * <h3>Example</h3>
-     *
      * <pre>{@code
-     * List<String> result = Linq.repeat("A", 3).toList();
-     * // result = ["A", "A", "A"]
-     *
-     * List<String> empty = Linq.repeat("A", 0).toList();
-     * // result = []
+     * IntEnumerable xs = Linq.ints(1, 2, 3);
+     * int sum = xs.intSum();
      * }</pre>
      *
-     * <h3>Behavior</h3>
-     * <ul>
-     *   <li>If {@code count == 0}, the sequence is empty.</li>
-     *   <li>If {@code count < 0}, an {@link IllegalArgumentException} is thrown.</li>
-     *   <li>{@code element} may be {@code null}; null values are repeated as-is.</li>
-     * </ul>
-     *
-     * @param element the element to repeat (may be {@code null})
-     * @param count   the number of repetitions (must be non-negative)
-     * @param <T>     the element type
-     * @return a lazy {@link Enumerable} producing repeated elements
-     *
-     * @since 1.0.0
+     * @param items source values
+     * @return an {@link IntEnumerable} over the provided values
+     * @throws NullPointerException if {@code items} is {@code null}
+     * @since 1.0.3
      */
-    public static <T> Enumerable<T> repeat(T element, int count) {
-        return new Linq<>(() -> new RepeatEnumerator<>(element, count));
+    public static IntEnumerable ints(Integer... items) {
+        NullCheck.requireNonNull(items);
+
+        return new IntEnumerable.IntLinq(() -> new ArrayEnumerator<>(items));
     }
 
+    /**
+     * Creates a {@link LongEnumerable} from the given {@code Long} values.
+     *
+     * <p>The values are boxed lazily during enumeration.
+     * No defensive copy of the array is performed.</p>
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * LongEnumerable xs = Linq.longs(10L, 20L, 30L);
+     * long sum = xs.longSum();     // 60
+     * long min = xs.longMin();     // 10
+     * }</pre>
+     *
+     * @param items source values
+     * @return a {@link LongEnumerable} representing the provided values
+     * @throws NullPointerException if {@code items} is {@code null}
+     * @since 1.0.3
+     */
+    public static LongEnumerable longs(Long... items) {
+        NullCheck.requireNonNull(items);
+        return new LongEnumerable.LongLinq(() -> new ArrayEnumerator<>(items));
+    }
 
+    /**
+     * Creates a {@link DoubleEnumerable} from the given {@code Double} values.
+     *
+     * <p>The values are boxed lazily during enumeration.
+     * No defensive copy of the array is performed.</p>
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * DoubleEnumerable xs = Linq.doubles(10L, 20L, 30L);
+     * double sum = xs.doubleSum();     // 60
+     * double min = xs.doubleMin();     // 10
+     * }</pre>
+     *
+     * @param items source values
+     * @return a {@link DoubleEnumerable} representing the provided values
+     * @throws NullPointerException if {@code items} is {@code null}
+     * @since 1.0.3
+     */
+    public static DoubleEnumerable doubles(Double... items) {
+        NullCheck.requireNonNull(items);
+        return new DoubleEnumerable.DoubleLinq(() -> new ArrayEnumerator<>(items));
+    }
+
+    /**
+     * Creates a {@link FloatEnumerable} from the given {@code Float} values.
+     *
+     * <p>The values are boxed lazily during enumeration.
+     * No defensive copy of the array is performed.</p>
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * FloatEnumerable xs = Linq.float(10L, 20L, 30L);
+     * float sum = xs.floatSum();     // 60
+     * float min = xs.floatMin();     // 10
+     * }</pre>
+     *
+     * @param items source values
+     * @return a {@link FloatEnumerable} representing the provided values
+     * @throws NullPointerException if {@code items} is {@code null}
+     * @since 1.0.3
+     */
+    public static FloatEnumerable floats(Float... items) {
+        NullCheck.requireNonNull(items);
+        return new FloatEnumerable.FloatLinq(() -> new ArrayEnumerator<>(items));
+    }
+
+    /**
+     * Creates an {@link IntEnumerable} from primitive {@code int} values.
+     *
+     * <p>Values are boxed lazily during enumeration.
+     * No defensive copy is performed.</p>
+     *
+     * <h3>Example</h3>
+     * <pre>{@code
+     * IntEnumerable xs = Linq.primitiveInts(1, 2, 3);
+     * int sum = xs.intSum();
+     * }</pre>
+     *
+     * @param items source values
+     * @return an {@link IntEnumerable} representing the provided values
+     * @throws NullPointerException if {@code items} is {@code null}
+     * @since 1.0.3
+     */
+    public static IntEnumerable primitiveInts(int... items) {
+        NullCheck.requireNonNull(items);
+
+        return new IntEnumerable.IntLinq(() -> new AbstractEnumerator<Integer>() {
+
+            private int index;
+
+            @Override
+            protected boolean moveNextCore() {
+                if (index >= items.length)
+                    return false;
+
+                this.current = items[index++]; // boxing
+                return true;
+            }
+
+            @Override
+            protected AbstractEnumerator<Integer> clone()
+                throws CloneNotSupportedException {
+                throw new CloneNotSupportedException(
+                    "Primitive int enumerator cannot be cloned. " +
+                        "Enumerate again to obtain a fresh enumerator."
+                );
+            }
+        });
+    }
+
+    /**
+     * Creates a {@link LongEnumerable} from primitive {@code long} values.
+     *
+     * <p>Values are boxed lazily during enumeration.
+     * No defensive copy is performed.</p>
+     *
+     * @param items source values
+     * @return a {@link LongEnumerable} representing the provided values
+     * @throws NullPointerException if {@code items} is {@code null}
+     * @since 1.0.3
+     */
+    public static LongEnumerable primitiveLongs(long... items) {
+        NullCheck.requireNonNull(items);
+
+        return new LongEnumerable.LongLinq(() -> new AbstractEnumerator<Long>() {
+
+            private int index;
+
+            @Override
+            protected boolean moveNextCore() {
+                if (index >= items.length)
+                    return false;
+
+                this.current = items[index++]; // boxing
+                return true;
+            }
+
+            @Override
+            protected AbstractEnumerator<Long> clone()
+                throws CloneNotSupportedException {
+                throw new CloneNotSupportedException(
+                    "Primitive long enumerator cannot be cloned."
+                );
+            }
+        });
+    }
+
+    /**
+     * Creates a {@link FloatEnumerable} from primitive {@code float} values.
+     *
+     * <p>Values are boxed lazily during enumeration.
+     * No defensive copy is performed.</p>
+     *
+     * @param items source values
+     * @return a {@link FloatEnumerable} representing the provided values
+     * @throws NullPointerException if {@code items} is {@code null}
+     * @since 1.0.3
+     */
+    public static FloatEnumerable primitiveFloats(float... items) {
+        NullCheck.requireNonNull(items);
+
+        return new FloatEnumerable.FloatLinq(() -> new AbstractEnumerator<Float>() {
+
+            private int index;
+
+            @Override
+            protected boolean moveNextCore() {
+                if (index >= items.length)
+                    return false;
+
+                this.current = items[index++]; // boxing
+                return true;
+            }
+
+            @Override
+            protected AbstractEnumerator<Float> clone()
+                throws CloneNotSupportedException {
+                throw new CloneNotSupportedException(
+                    "Primitive float enumerator cannot be cloned."
+                );
+            }
+        });
+    }
+
+    /**
+     * Creates a {@link DoubleEnumerable} from primitive {@code double} values.
+     *
+     * <p>Values are boxed lazily during enumeration.
+     * No defensive copy is performed.</p>
+     *
+     * @param items source values
+     * @return a {@link DoubleEnumerable} representing the provided values
+     * @throws NullPointerException if {@code items} is {@code null}
+     * @since 1.0.3
+     */
+    public static DoubleEnumerable primitiveDoubles(double... items) {
+        NullCheck.requireNonNull(items);
+
+        return new DoubleEnumerable.DoubleLinq(() -> new AbstractEnumerator<Double>() {
+
+            private int index;
+
+            @Override
+            protected boolean moveNextCore() {
+                if (index >= items.length)
+                    return false;
+
+                this.current = items[index++]; // boxing
+                return true;
+            }
+
+            @Override
+            protected AbstractEnumerator<Double> clone()
+                throws CloneNotSupportedException {
+                throw new CloneNotSupportedException(
+                    "Primitive double enumerator cannot be cloned."
+                );
+            }
+        });
+    }
 }

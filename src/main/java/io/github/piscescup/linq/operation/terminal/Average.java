@@ -45,7 +45,7 @@ public final class Average {
      * @throws NullPointerException if {@code source} is {@code null} or a null element is encountered
      * @throws IllegalArgumentException if the sequence is empty
      */
-    public static double intAverageNonNull(Enumerable<Integer> source) {
+    public static double intAverage(Enumerable<Integer> source) {
         NullCheck.requireNonNull(source);
 
         long sum = 0L;
@@ -77,7 +77,7 @@ public final class Average {
      * @throws NullPointerException if {@code source} is {@code null}
      * @throws IllegalArgumentException if no non-null elements exist
      */
-    public static double intAverageNullable(Enumerable<Integer> source) {
+    public static double intAverageIgnoreNull(Enumerable<Integer> source) {
         NullCheck.requireNonNull(source);
 
         long sum = 0L;
@@ -109,7 +109,7 @@ public final class Average {
      * @throws NullPointerException if {@code source} is {@code null} or a null element is encountered
      * @throws IllegalArgumentException if the sequence is empty
      */
-    public static double longAverageNonNull(Enumerable<Long> source) {
+    public static double longAverage(Enumerable<Long> source) {
         NullCheck.requireNonNull(source);
 
         long sum = 0L;
@@ -141,7 +141,7 @@ public final class Average {
      * @throws NullPointerException if {@code source} is {@code null}
      * @throws IllegalArgumentException if no non-null elements exist
      */
-    public static double longAverageNullable(Enumerable<Long> source) {
+    public static double longAverageIgnoreNull(Enumerable<Long> source) {
         NullCheck.requireNonNull(source);
 
         long sum = 0L;
@@ -237,7 +237,7 @@ public final class Average {
      * @throws NullPointerException if {@code source} is {@code null} or a null element is encountered
      * @throws IllegalArgumentException if the sequence is empty
      */
-    public static double doubleAverageNonNull(Enumerable<Double> source) {
+    public static double doubleAverage(Enumerable<Double> source) {
         NullCheck.requireNonNull(source);
 
         double sum = 0.0;
@@ -269,7 +269,7 @@ public final class Average {
      * @throws NullPointerException if {@code source} is {@code null}
      * @throws IllegalArgumentException if no non-null elements exist
      */
-    public static double doubleAverageNullable(Enumerable<Double> source) {
+    public static double doubleAverageIgnoreNull(Enumerable<Double> source) {
         NullCheck.requireNonNull(source);
 
         double sum = 0.0;

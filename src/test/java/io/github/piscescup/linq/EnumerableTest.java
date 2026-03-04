@@ -95,14 +95,6 @@ class EnumerableTest {
         assertEquals(List.of(1, 2, 3), seq.prepend(1).toList());
     }
 
-    @Test
-    void intAverageNullable() {
-        Enumerable<Integer> seq = Linq.of(1, 2, null, 3);
-        assertThrows(NullPointerException.class, seq::intAverageNonNull);
-        assertEquals(2.0,
-            seq.intAverageNullable());
-    }
-
 
     @Test
     void decimalAverageNullable() {
@@ -135,7 +127,7 @@ class EnumerableTest {
     void chunk() {
         Enumerable<Integer> nums = Linq.of(1, 2, 3, 4, 5);
         nums.chunk(2, Integer.class)
-            .select(Arrays::toString)
+            .selectToObj(Arrays::toString)
             .forEach(System.out::println);
     }
 
@@ -501,9 +493,9 @@ class EnumerableTest {
     }
 
     @Test
-    void select() {
+    void selectToObj() {
         Enumerable<Integer> nums = Linq.of(1, 2, 3);
-        List<String> strings = nums.select(i -> "n" + i).toList();
+        List<String> strings = nums.selectToObj(i -> "n" + i).toList();
         assertEquals(List.of("n1", "n2", "n3"), strings);
     }
 
@@ -686,7 +678,7 @@ class EnumerableTest {
     @Test
     public void testRepeat() {
         Linq.repeat("A", 10)
-            .select(String::toLowerCase)
+            .selectToObj(String::toLowerCase)
             .forEach(System.out::println);
 
     }

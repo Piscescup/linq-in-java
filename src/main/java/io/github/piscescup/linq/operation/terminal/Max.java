@@ -43,6 +43,231 @@ public final class Max {
     }
 
     /**
+     * Returns the maximum value in the sequence.
+     *
+     * @throws NoSuchElementException if the sequence is empty
+     */
+    public static int intMax(Enumerable<Integer> source) {
+        NullCheck.requireNonNull(source);
+
+        try (Enumerator<Integer> e = source.enumerator()) {
+            if (!e.moveNext())
+                throw new NoSuchElementException("Sequence contains no elements");
+
+            int max = e.current();
+
+            while (e.moveNext()) {
+                int value = e.current();
+                if (value > max)
+                    max = value;
+            }
+
+            return max;
+        }
+    }
+
+    /**
+     * Returns the maximum value in the sequence, ignoring {@code null}.
+     *
+     * @throws NoSuchElementException if no non-null elements exist
+     */
+    public static int intMaxIgnoreNull(Enumerable<Integer> source) {
+        NullCheck.requireNonNull(source);
+
+        boolean found = false;
+        int max = 0;
+
+        try (Enumerator<Integer> e = source.enumerator()) {
+            while (e.moveNext()) {
+                Integer value = e.current();
+                if (value != null) {
+                    if (!found || value > max) {
+                        max = value;
+                        found = true;
+                    }
+                }
+            }
+        }
+
+        if (!found)
+            throw new NoSuchElementException("Sequence contains no non-null elements");
+
+        return max;
+    }
+
+    /**
+     * Returns the maximum value in the sequence.
+     *
+     * @throws NoSuchElementException if the sequence is empty
+     */
+    public static long longMax(Enumerable<Long> source) {
+        NullCheck.requireNonNull(source);
+
+        try (Enumerator<Long> e = source.enumerator()) {
+            if (!e.moveNext())
+                throw new NoSuchElementException("Sequence contains no elements");
+
+            long max = e.current();
+
+            while (e.moveNext()) {
+                long value = e.current();
+                if (value > max)
+                    max = value;
+            }
+
+            return max;
+        }
+    }
+
+    /**
+     * Returns the maximum value in the sequence, ignoring {@code null}.
+     *
+     * @throws NoSuchElementException if no non-null elements exist
+     */
+    public static long longMaxIgnoreNull(Enumerable<Long> source) {
+        NullCheck.requireNonNull(source);
+
+        boolean found = false;
+        long max = 0L;
+
+        try (Enumerator<Long> e = source.enumerator()) {
+            while (e.moveNext()) {
+                Long value = e.current();
+                if (value != null) {
+                    if (!found || value > max) {
+                        max = value;
+                        found = true;
+                    }
+                }
+            }
+        }
+
+        if (!found)
+            throw new NoSuchElementException("Sequence contains no non-null elements");
+
+        return max;
+    }
+
+    /**
+     * Returns the maximum value in the sequence.
+     *
+     * <p>Comparison is performed using {@link Float#compare(float, float)}.</p>
+     *
+     * @throws IllegalArgumentException if the sequence is empty
+     * @since 1.0.3
+     */
+    public static float floatMax(Enumerable<Float> source) {
+        NullCheck.requireNonNull(source);
+
+        try (Enumerator<Float> e = source.enumerator()) {
+            if (!e.moveNext())
+                throw new IllegalArgumentException("Sequence contains no elements");
+
+            float max = e.current(); // may throw NPE due to unboxing if null
+
+            while (e.moveNext()) {
+                float value = e.current(); // may throw NPE due to unboxing if null
+                if (Float.compare(value, max) > 0)
+                    max = value;
+            }
+
+            return max;
+        }
+    }
+
+    /**
+     * Returns the maximum non-null value in the sequence.
+     *
+     * <p>Null values are ignored.</p>
+     * <p>Comparison is performed using {@link Float#compare(float, float)}.</p>
+     *
+     * @throws IllegalArgumentException if the sequence contains no non-null elements
+     * @since 1.0.3
+     */
+    public static float floatMaxIgnoreNull(Enumerable<Float> source) {
+        NullCheck.requireNonNull(source);
+
+        boolean found = false;
+        float max = 0.0f;
+
+        try (Enumerator<Float> e = source.enumerator()) {
+            while (e.moveNext()) {
+                Float value = e.current();
+                if (value != null) {
+                    if (!found || Float.compare(value, max) > 0) {
+                        max = value;
+                        found = true;
+                    }
+                }
+            }
+        }
+
+        if (!found)
+            throw new IllegalArgumentException("Sequence contains no non-null elements");
+
+        return max;
+    }
+
+
+    /**
+     * Returns the maximum value in the sequence.
+     *
+     * <p>Uses {@link Double#compare(double, double)} for comparison.
+     *
+     * @throws NoSuchElementException if the sequence is empty
+     */
+    public static double doubleMax(Enumerable<Double> source) {
+        NullCheck.requireNonNull(source);
+
+        try (Enumerator<Double> e = source.enumerator()) {
+            if (!e.moveNext())
+                throw new NoSuchElementException("Sequence contains no elements");
+
+            double max = e.current();
+
+            while (e.moveNext()) {
+                double value = e.current();
+                if (Double.compare(value, max) > 0)
+                    max = value;
+            }
+
+            return max;
+        }
+    }
+
+    /**
+     * Returns the maximum value in the sequence, ignoring {@code null}.
+     *
+     * <p>Uses {@link Double#compare(double, double)} for comparison.
+     *
+     * @throws NoSuchElementException if no non-null elements exist
+     */
+    public static double doubleMaxIgnoreNull(Enumerable<Double> source) {
+        NullCheck.requireNonNull(source);
+
+        boolean found = false;
+        double max = 0.0d;
+
+        try (Enumerator<Double> e = source.enumerator()) {
+            while (e.moveNext()) {
+                Double value = e.current();
+                if (value != null) {
+                    if (!found || Double.compare(value, max) > 0) {
+                        max = value;
+                        found = true;
+                    }
+                }
+            }
+        }
+
+        if (!found)
+            throw new NoSuchElementException("Sequence contains no non-null elements");
+
+        return max;
+    }
+
+
+    /**
      * Returns the maximum {@code int} value produced by applying the given mapping
      * function to each element of the source sequence.
      *

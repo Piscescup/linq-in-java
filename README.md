@@ -240,7 +240,7 @@ void main() {
 
     var evenSquares = numbers
         .where(n -> n % 2 == 0)
-        .select(n -> n * n)
+        .selectToObj(n -> n * n)
         .toList();
 
     System.out.println(evenSquares); // [4, 16, 36]
