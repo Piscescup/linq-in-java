@@ -2,11 +2,14 @@ package io.github.piscescup.linq.operation.intermediate;
 
 import io.github.piscescup.linq.Enumerable;
 import io.github.piscescup.linq.Enumerator;
+import io.github.piscescup.linq.Linq;
 import io.github.piscescup.linq.enumerator.AbstractEnumerator;
+import io.github.piscescup.linq.primitive.DoubleEnumerable;
+import io.github.piscescup.linq.primitive.IntEnumerable;
+import io.github.piscescup.linq.primitive.LongEnumerable;
 import io.github.piscescup.util.validation.NullCheck;
 
-import java.util.function.BiFunction;
-import java.util.function.Function;
+import java.util.function.*;
 
 
 /**
@@ -87,6 +90,42 @@ public final class Select {
         NullCheck.requireNonNull(resultSelector);
         return new SelectManyEnumerable<>(source, collectionSelector, resultSelector);
     }
+
+    public static <T> IntEnumerable selectToInt(
+        Enumerable<T> source,
+        ToIntFunction<? super T> intMapping
+    ) {
+        NullCheck.requireNonNull(source);
+        NullCheck.requireNonNull(intMapping);
+
+        return new IntEnumerable.IntLinq(() -> new SelectToIntEnumerator<>(source.enumerator(), intMapping));
+    }
+
+    public static <T> LongEnumerable selectToLong(
+        Enumerable<T> source,
+        ToLongFunction<? super T> mapper
+    ) {
+        NullCheck.requireNonNull(source);
+        NullCheck.requireNonNull(mapper);
+
+        return new LongEnumerable.LongLinq(
+            () -> new SelectToLongEnumerator<>(source.enumerator(), mapper)
+        );
+    }
+
+    public static <T> DoubleEnumerable selectToDouble(
+        Enumerable<T> source,
+        ToDoubleFunction<? super T> mapper
+    ) {
+        NullCheck.requireNonNull(source);
+        NullCheck.requireNonNull(mapper);
+
+        return new DoubleEnumerable.DoubleLinq(
+            () -> new SelectToDoubleEnumerator<>(source.enumerator(), mapper)
+        );
+    }
+
+
 }
 
 /* ====================================================================== */
@@ -250,5 +289,105 @@ final class SelectManyEnumerator<T, C, R> extends AbstractEnumerator<R> {
             outerEnumerator = null;
         }
         currentOuter = null;
+    }
+}
+
+
+final class SelectToIntEnumerator<T> extends AbstractEnumerator<Integer> {
+
+    private final Enumerator<T> source;
+    private final ToIntFunction<? super T> mapper;
+
+    public SelectToIntEnumerator(Enumerator<T> source, ToIntFunction<? super T> mapper) {
+        this.source = source;
+        this.mapper = mapper;
+    }
+
+    @Override
+    protected boolean moveNextCore() {
+        if (!source.moveNext())
+            return false;
+
+        T current = source.current();
+        this.current = mapper.applyAsInt(current);
+        return true;
+    }
+
+    @Override
+    public void close() {
+        source.close();
+    }
+
+    @Override
+    protected AbstractEnumerator<Integer> clone() throws CloneNotSupportedException {
+        return new SelectToIntEnumerator<>(source, mapper);
+    }
+}
+
+final class SelectToLongEnumerator<T>
+    extends AbstractEnumerator<Long> {
+
+    private final Enumerator<T> source;
+    private final ToLongFunction<? super T> mapper;
+
+    public SelectToLongEnumerator(
+        Enumerator<T> source,
+        ToLongFunction<? super T> mapper
+    ) {
+        this.source = source;
+        this.mapper = mapper;
+    }
+
+    @Override
+    protected boolean moveNextCore() {
+        if (!source.moveNext())
+            return false;
+
+        this.current = mapper.applyAsLong(source.current());
+        return true;
+    }
+
+    @Override
+    public void close() {
+        source.close();
+    }
+
+    @Override
+    protected AbstractEnumerator<Long> clone() throws CloneNotSupportedException {
+        return new SelectToLongEnumerator<>(source, mapper);
+    }
+}
+
+final class SelectToDoubleEnumerator<T>
+    extends AbstractEnumerator<Double> {
+
+    private final Enumerator<T> source;
+    private final ToDoubleFunction<? super T> mapper;
+
+    public SelectToDoubleEnumerator(
+        Enumerator<T> source,
+        ToDoubleFunction<? super T> mapper
+    ) {
+        this.source = source;
+        this.mapper = mapper;
+    }
+
+    @Override
+    protected boolean moveNextCore() {
+        if (!source.moveNext())
+            return false;
+
+        this.current = mapper.applyAsDouble(source.current());
+        return true;
+    }
+
+    @Override
+    public void close() {
+        source.close();
+    }
+
+    @Override
+    protected AbstractEnumerator<Double> clone() throws CloneNotSupportedException {
+        return new SelectToDoubleEnumerator<>(source, mapper);
     }
 }

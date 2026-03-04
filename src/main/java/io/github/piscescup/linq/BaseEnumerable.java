@@ -10,7 +10,6 @@ import io.github.piscescup.linq.primitive.DoubleEnumerable;
 import io.github.piscescup.linq.primitive.IntEnumerable;
 import io.github.piscescup.linq.primitive.LongEnumerable;
 import io.github.piscescup.util.validation.NullCheck;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
@@ -85,40 +84,7 @@ import java.util.stream.StreamSupport;
  * @author Ren YuanTong
  * @since 1.0.0
  */
-public interface Enumerable<T> extends Iterable<T> {
-
-    /**
-     * Returns a new enumerator that iterates over this sequence.
-     *
-     * <p>Each invocation must return a <b>fresh</b> enumerator instance positioned before the first element.</p>
-     *
-     * <p>Typical usage:</p>
-     * <pre>{@code
-     * try (Enumerator<T> e = enumerable.enumerator()) {
-     *     while (e.moveNext()) {
-     *         T x = e.current();
-     *         // ...
-     *     }
-     * }
-     * }</pre>
-     *
-     * @return a new {@link Enumerator} for this sequence
-     * @throws RuntimeException if the underlying source cannot create an enumerator (implementation-defined)
-     */
-    Enumerator<T> enumerator();
-
-    /**
-     * Returns an iterator over the elements in this sequence.
-     *
-     * <p>This default implementation delegates to {@link #enumerator()}.</p>
-     *
-     * @return an iterator over the elements in this sequence
-     */
-    @Override
-    @NotNull
-    default Iterator<T> iterator() {
-        return enumerator();
-    }
+public interface BaseEnumerable<T, F_E extends BaseEnumerable<T, F_E>> extends InternalEnumerable<T> {
 
     /**
      * Aggregates the sequence into an accumulator of type {@code A}, then maps the final accumulator to {@code R}.
@@ -229,7 +195,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or any supplied function/comparator throws
      */
-    default <K, R> Enumerable<Pair<K, R>> aggregateBy(
+    default <K, R, E_OUT extends BaseEnumerable<Pair<K, R>, E_OUT>> E_OUT aggregateBy(
         Function<? super T, ? extends K> keyExtractor,
         Function<? super K, ? extends R> keyMapping,
         BinFunction<? super R, ? super T, ? extends R> resultMapping,
@@ -267,7 +233,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code keyExtractor}, {@code resultMapping}, or {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or any supplied function/comparator throws
      */
-    default <K, R> Enumerable<Pair<K, R>> aggregateBySeed(
+    default <K, R, E_OUT extends BaseEnumerable<Pair<K, R>, E_OUT>> E_OUT aggregateBySeed(
         R seed,
         Function<? super T, ? extends K> keyExtractor,
         BinFunction<? super R, ? super T, ? extends R> resultMapping,
@@ -328,19 +294,19 @@ public interface Enumerable<T> extends Iterable<T> {
      * @return a new sequence ending with {@code element}
      * @throws RuntimeException if the new sequence cannot be created (implementation-defined)
      */
-    default Enumerable<T> append(T element) {
+    default F_E append(T element) {
         return AppendPrepend.append(this, element);
     }
 
     /**
-     * Returns this instance as an {@link Enumerable}.
+     * Returns this instance as an {@link BaseEnumerable}.
      *
      * <p>This is mostly useful for fluent APIs and adaptation points.</p>
      *
-     * @return this sequence as an {@link Enumerable}
+     * @return this sequence as an {@link BaseEnumerable}
      * @throws RuntimeException if adaptation fails (implementation-defined)
      */
-    default Enumerable<T> toEnumerable() {
+    default F_E toEnumerable() {
         return this;
     }
 
@@ -371,7 +337,7 @@ public interface Enumerable<T> extends Iterable<T> {
     @SuppressWarnings("unchecked")
     default BigDecimal decimalAverageNullable(MathContext context) {
         NullCheck.requireNonNull(context, "context");
-        return Average.decimalAverageNullable((Enumerable<BigDecimal>) this, context);
+        return Average.decimalAverageNullable((BaseEnumerable<BigDecimal>) this, context);
     }
 
     /**
@@ -391,7 +357,7 @@ public interface Enumerable<T> extends Iterable<T> {
     @SuppressWarnings("unchecked")
     default BigDecimal decimalAverageNonNull(MathContext context) {
         NullCheck.requireNonNull(context, "context");
-        return Average.decimalAverageNonNull((Enumerable<BigDecimal>) this, context);
+        return Average.decimalAverageNonNull((BaseEnumerable<BigDecimal>) this, context);
     }
 
     /**
@@ -451,7 +417,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws IllegalArgumentException if {@code size <= 0}
      * @throws RuntimeException if chunking cannot be performed (implementation-defined)
      */
-    default Enumerable<T[]> chunk(int size, Class<T> clazz) {
+    default <E_OUT extends BaseEnumerable<T[], E_OUT>> E_OUT chunk(int size, Class<T> clazz) {
         return Chunk.chunk(this, size, clazz);
     }
 
@@ -469,7 +435,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws IllegalArgumentException if {@code size <= 0}
      * @throws RuntimeException if chunking cannot be performed (implementation-defined)
      */
-    default Enumerable<List<T>> chunkAsList(int size) {
+    default <E_OUT extends BaseEnumerable<List<T>, E_OUT>> E_OUT chunkAsList(int size) {
         return Chunk.chunkAsList(this, size);
     }
 
@@ -486,7 +452,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code other} is {@code null}
      * @throws RuntimeException if enumeration fails in either sequence
      */
-    default Enumerable<T> concat(Enumerable<? extends T> other) {
+    default F_E concat(F_E other) {
         return Concat.concat(this, other);
     }
 
@@ -556,7 +522,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code keyExtractor} or {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or any supplied function/comparator throws
      */
-    default <K> Enumerable<Pair<K, Long>> countBy(
+    default <K, E_OUT extends BaseEnumerable<Pair<K, Long>, E_OUT>> E_OUT countBy(
         Function<? super T, ? extends K> keyExtractor,
         Comparator<? super K> comparator
     ) {
@@ -577,7 +543,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws RuntimeException if enumeration fails
      */
     @Nullable
-    default Enumerable<T> defaultIfEmpty() {
+    default F_E defaultIfEmpty() {
         return defaultIfEmpty(null);
     }
 
@@ -593,7 +559,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @return a sequence that yields {@code defaultElement} if empty, otherwise yields original elements
      * @throws RuntimeException if enumeration fails
      */
-    default Enumerable<T> defaultIfEmpty(T defaultElement) {
+    default F_E defaultIfEmpty(T defaultElement) {
         return DefaultIfEmpty.defaultIfEmpty(this, defaultElement);
     }
 
@@ -608,7 +574,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @return a distinct sequence
      * @throws RuntimeException if enumeration fails
      */
-    default Enumerable<T> distinct() {
+    default F_E distinct() {
         return Distinct.distinct(this);
     }
 
@@ -627,7 +593,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code comparator} throws
      */
-    default Enumerable<T> distinct(Comparator<? super T> comparator) {
+    default F_E distinct(Comparator<? super T> comparator) {
         return Distinct.distinct(this, comparator);
     }
 
@@ -646,7 +612,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code keyExtractor} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code keyExtractor} throws
      */
-    default <K> Enumerable<T> distinctBy(Function<? super T, ? extends K> keyExtractor) {
+    default <K> F_E distinctBy(Function<? super T, ? extends K> keyExtractor) {
         return Distinct.distinctBy(this, keyExtractor);
     }
 
@@ -667,7 +633,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code keyExtractor} or {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    default <K> Enumerable<T> distinctBy(
+    default <K> F_E distinctBy(
         Function<? super T, ? extends K> keyExtractor,
         Comparator<? super K> comparator
     ) {
@@ -721,7 +687,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code other} is {@code null}
      * @throws RuntimeException if enumeration fails
      */
-    default Enumerable<T> except(Enumerable<? extends T> other) {
+    default F_E except(F_E other) {
         return Except.except(this, other);
     }
 
@@ -741,7 +707,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code other} or {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code comparator} throws
      */
-    default Enumerable<T> except(Enumerable<? extends T> other, Comparator<? super T> comparator) {
+    default F_E except(F_E other, Comparator<? super T> comparator) {
         return Except.except(this, other, comparator);
     }
 
@@ -760,8 +726,8 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code other} or {@code keyExtractor} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code keyExtractor} throws
      */
-    default <K> Enumerable<T> exceptBy(
-        Enumerable<? extends K> other,
+    default <K> F_E exceptBy(
+        BaseEnumerable<? extends K> other,
         Function<? super T, ? extends K> keyExtractor
     ) {
         return Except.exceptBy(this, other, keyExtractor);
@@ -784,8 +750,8 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    default <K> Enumerable<T> exceptBy(
-        Enumerable<? extends K> other,
+    default <K> F_E exceptBy(
+        BaseEnumerable<? extends K> other,
         Function<? super T, ? extends K> keyExtractor,
         Comparator<? super K> comparator
     ) {
@@ -883,10 +849,10 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code keyExtractor}, {@code elementSelector}, or {@code resultMapping} is {@code null}
      * @throws RuntimeException if enumeration fails or any supplied function throws
      */
-    default <K, E, R> Enumerable<R> groupResultBy(
+    default <K, E, R> BaseEnumerable<R> groupResultBy(
         Function<? super T, ? extends K> keyExtractor,
         Function<? super T, ? extends E> elementSelector,
-        BinFunction<? super K, ? super Enumerable<E>, ? extends R> resultMapping
+        BinFunction<? super K, ? super BaseEnumerable<E>, ? extends R> resultMapping
     ) {
         return Group.groupBy(this, keyExtractor, elementSelector, resultMapping);
     }
@@ -915,10 +881,10 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    default <K, E, R> Enumerable<R> groupResultBy(
+    default <K, E, R> BaseEnumerable<R> groupResultBy(
         Function<? super T, ? extends K> keyExtractor,
         Function<? super T, ? extends E> elementSelector,
-        BinFunction<? super K, ? super Enumerable<E>, ? extends R> resultMapping,
+        BinFunction<? super K, ? super BaseEnumerable<E>, ? extends R> resultMapping,
         Comparator<? super K> comparator
     ) {
         return Group.groupBy(this, keyExtractor, elementSelector, resultMapping, comparator);
@@ -940,7 +906,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code keyExtractor} or {@code elementSelector} is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function throws
      */
-    default <K, E> Enumerable<Groupable<K, E>> groupBy(
+    default <K, E> BaseEnumerable<Groupable<K, E>> groupBy(
         Function<? super T, ? extends K> keyExtractor,
         Function<? super T, ? extends E> elementSelector
     ) {
@@ -969,7 +935,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    default <K, E> Enumerable<Groupable<K, E>> groupBy(
+    default <K, E> BaseEnumerable<Groupable<K, E>> groupBy(
         Function<? super T, ? extends K> keyExtractor,
         Function<? super T, ? extends E> elementSelector,
         Comparator<? super K> comparator
@@ -993,9 +959,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code keyExtractor} or {@code resultMapping} is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function throws
      */
-    default <K, R> Enumerable<R> groupResultBy(
+    default <K, R> BaseEnumerable<R> groupResultBy(
         Function<? super T, ? extends K> keyExtractor,
-        BinFunction<? super K, ? super Enumerable<T>, ? extends R> resultMapping
+        BinFunction<? super K, ? super F_E, ? extends R> resultMapping
     ) {
         return Group.groupBy(this, keyExtractor, resultMapping);
     }
@@ -1017,9 +983,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    default <K, R> Enumerable<R> groupResultBy(
+    default <K, R> BaseEnumerable<R> groupResultBy(
         Function<? super T, ? extends K> keyExtractor,
-        BinFunction<? super K, ? super Enumerable<T>, ? extends R> resultMapping,
+        BinFunction<? super K, ? super F_E, ? extends R> resultMapping,
         Comparator<? super K> comparator
     ) {
         return Group.groupBy(this, keyExtractor, resultMapping, comparator);
@@ -1039,7 +1005,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code keyExtractor} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code keyExtractor} throws
      */
-    default <K> Enumerable<Groupable<K, T>> groupBy(Function<? super T, ? extends K> keyExtractor) {
+    default <K> BaseEnumerable<Groupable<K, T>> groupBy(Function<? super T, ? extends K> keyExtractor) {
         return Group.groupBy(this, keyExtractor);
     }
 
@@ -1059,7 +1025,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code keyExtractor} or {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    default <K> Enumerable<Groupable<K, T>> groupBy(
+    default <K> BaseEnumerable<Groupable<K, T>> groupBy(
         Function<? super T, ? extends K> keyExtractor,
         Comparator<? super K> comparator
     ) {
@@ -1092,11 +1058,11 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function throws
      */
-    default <O, K, R> Enumerable<R> groupJoin(
-        Enumerable<? extends O> other,
+    default <O, K, R> BaseEnumerable<R> groupJoin(
+        BaseEnumerable<? extends O> other,
         Function<? super T, ? extends K> selfKeyExtractor,
         Function<? super O, ? extends K> otherKeyExtractor,
-        BiFunction<? super T, ? super Enumerable<O>, ? extends R> resultMapping
+        BiFunction<? super T, ? super BaseEnumerable<O>, ? extends R> resultMapping
     ) {
         return GroupJoin.groupJoin(this, other, selfKeyExtractor, otherKeyExtractor, resultMapping);
     }
@@ -1126,11 +1092,11 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    default <O, K, R> Enumerable<R> groupJoin(
-        Enumerable<? extends O> other,
+    default <O, K, R, E_OUT extends BaseEnumerable<R, E_OUT>> E_OUT groupJoin(
+        BaseEnumerable<? extends O> other,
         Function<? super T, ? extends K> selfKeyExtractor,
         Function<? super O, ? extends K> otherKeyExtractor,
-        BiFunction<? super T, ? super Enumerable<O>, ? extends R> resultMapping,
+        BiFunction<? super T, ? super BaseEnumerable<O>, ? extends R> resultMapping,
         Comparator<? super K> comparator
     ) {
         return GroupJoin.groupJoin(this, other, selfKeyExtractor, otherKeyExtractor, resultMapping, comparator);
@@ -1149,7 +1115,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code other} is {@code null}
      * @throws RuntimeException if enumeration fails
      */
-    default Enumerable<T> intersect(Enumerable<? extends T> other) {
+    default F_E intersect(F_E other) {
         return Intersect.intersect(this, other);
     }
 
@@ -1167,7 +1133,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code other} or {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or {@code comparator} throws
      */
-    default Enumerable<T> intersect(Enumerable<? extends T> other, Comparator<? super T> comparator) {
+    default F_E intersect(F_E other, Comparator<? super T> comparator) {
         return Intersect.intersect(this, other, comparator);
     }
 
@@ -1186,8 +1152,8 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code other} or {@code keyExtractor} is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function throws
      */
-    default <K> Enumerable<T> intersectBy(
-        Enumerable<? extends K> other,
+    default <K> F_E intersectBy(
+        BaseEnumerable<? extends K> other,
         Function<? super T, ? extends K> keyExtractor
     ) {
         return Intersect.intersectBy(this, other, keyExtractor);
@@ -1209,8 +1175,8 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    default <K> Enumerable<T> intersectBy(
-        Enumerable<? extends K> other,
+    default <K> F_E intersectBy(
+        BaseEnumerable<? extends K> other,
         Function<? super T, ? extends K> keyExtractor,
         Comparator<? super K> comparator
     ) {
@@ -1242,8 +1208,8 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function throws
      */
-    default <O, K, R> Enumerable<R> join(
-        Enumerable<? extends O> other,
+    default <O, O_E extends BaseEnumerable<O, O_E>, K, R, E_OUT extends BaseEnumerable<R, E_OUT>> E_OUT join(
+        O_E other,
         Function<? super T, ? extends K> selfKeyExtractor,
         Function<? super O, ? extends K> otherKeyExtractor,
         BiFunction<? super T, ? super O, ? extends R> resultMapping
@@ -1276,8 +1242,8 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    default <O, K, R> Enumerable<R> join(
-        Enumerable<? extends O> other,
+    default <O, O_E extends BaseEnumerable<O, O_E>, K, R, E_OUT extends BaseEnumerable<R, E_OUT>> E_OUT join(
+        O_E other,
         Function<? super T, ? extends K> selfKeyExtractor,
         Function<? super O, ? extends K> otherKeyExtractor,
         BiFunction<? super T, ? super O, ? extends R> resultMapping,
@@ -1380,8 +1346,8 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function throws
      */
-    default <O, K, R> Enumerable<R> leftJoin(
-        Enumerable<? extends O> other,
+    default <O, O_E extends BaseEnumerable<O, O_E>, K, R, E_OUT extends BaseEnumerable<R, E_OUT>> E_OUT leftJoin(
+        O_E other,
         Function<? super T, ? extends K> selfKeyExtractor,
         Function<? super O, ? extends K> otherKeyExtractor,
         BiFunction<? super T, ? super @Nullable O, ? extends R> resultMapping
@@ -1414,8 +1380,8 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    default <O, K, R> Enumerable<R> leftJoin(
-        Enumerable<? extends O> other,
+    default <O, O_E extends BaseEnumerable<O, O_E>, K, R, E_OUT extends BaseEnumerable<R, E_OUT>> E_OUT leftJoin(
+        O_E other,
         Function<? super T, ? extends K> selfKeyExtractor,
         Function<? super O, ? extends K> otherKeyExtractor,
         BiFunction<? super T, ? super @Nullable O, ? extends R> resultMapping,
@@ -1628,7 +1594,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code clazz} is {@code null}
      * @throws RuntimeException if enumeration fails
      */
-    default <C> Enumerable<C> extractTo(Class<C> clazz) {
+    default <C, C_E extends BaseEnumerable<C, C_E>> C_E extractTo(Class<C> clazz) {
         return ExtractTo.extractTo(this, clazz);
     }
 
@@ -1789,7 +1755,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @return a new sequence beginning with {@code element}
      * @throws RuntimeException if the new sequence cannot be created (implementation-defined)
      */
-    default Enumerable<T> prepend(T element) {
+    default F_E prepend(T element) {
         return AppendPrepend.prepend(this, element);
     }
 
@@ -1816,8 +1782,8 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function throws
      */
-    default <O, K, R> Enumerable<R> rightJoin(
-        Enumerable<? extends O> other,
+    default <O, O_E extends BaseEnumerable<O, O_E>, K, R, E_OUT extends BaseEnumerable<R, E_OUT>> E_OUT rightJoin(
+        O_E other,
         Function<? super T, ? extends K> selfKeyExtractor,
         Function<? super O, ? extends K> otherKeyExtractor,
         BiFunction<? super T, ? super O, ? extends R> resultMapping
@@ -1850,8 +1816,8 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    default <O, K, R> Enumerable<R> rightJoin(
-        Enumerable<? extends O> other,
+    default <O, O_E extends BaseEnumerable<O, O_E>, K, R, E_OUT extends BaseEnumerable<R, E_OUT>> E_OUT rightJoin(
+        O_E other,
         Function<? super T, ? extends K> selfKeyExtractor,
         Function<? super O, ? extends K> otherKeyExtractor,
         BiFunction<? super T, ? super O, ? extends R> resultMapping,
@@ -1874,10 +1840,9 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code selector} is {@code null}
      * @throws RuntimeException if enumeration fails or selector throws
      */
-    default <R> Enumerable<R> selectToObj(Function<? super T, ? extends R> selector) {
+    default <R, E_OUT extends BaseEnumerable<R, E_OUT>> E_OUT selectToObj(Function<? super T, ? extends R> selector) {
         return Select.select(this, selector);
     }
-
 
     /**
      * Projects each element to an {@code int} value.
@@ -1946,8 +1911,8 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code collectionSelector} or {@code resultSelector} is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function throws
      */
-    default <C, R> Enumerable<R> selectMany(
-        Function<? super T, ? extends Enumerable<? extends C>> collectionSelector,
+    default <C, C_E extends BaseEnumerable<? extends C, C_E>, R, E_OUT extends BaseEnumerable<R, E_OUT>> E_OUT selectMany(
+        Function<? super T, C_E> collectionSelector,
         BiFunction<? super T, ? super C, ? extends R> resultSelector
     ) {
         return Select.selectMany(this, collectionSelector, resultSelector);
@@ -1967,8 +1932,8 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code selector} is {@code null}
      * @throws RuntimeException if enumeration fails or selector throws
      */
-    default <C> Enumerable<C> selectMany(
-        Function<? super T, ? extends Enumerable<? extends C>> selector
+    default <C, C_E extends BaseEnumerable<? extends C, C_E>> BaseEnumerable<C> selectMany(
+        Function<? super T, C_E> selector
     ) {
         return selectMany(selector, (t, c) -> c);
     }
@@ -1986,7 +1951,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or predicate throws
      */
-    default Enumerable<T> shuffle(Predicate<? super T> predicate) {
+    default F_E shuffle(Predicate<? super T> predicate) {
         return Shuffle.shuffle(this, predicate);
     }
 
@@ -2076,7 +2041,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws IllegalArgumentException if {@code count < 0}
      * @throws RuntimeException if enumeration fails
      */
-    default Enumerable<T> skip(int count) {
+    default F_E skip(int count) {
         return SkipTake.skip(this, count);
     }
 
@@ -2093,7 +2058,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws IllegalArgumentException if {@code count < 0}
      * @throws RuntimeException if enumeration fails
      */
-    default Enumerable<T> skipLast(int count) {
+    default F_E skipLast(int count) {
         return SkipTake.skipLast(this, count);
     }
 
@@ -2110,7 +2075,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or predicate throws
      */
-    default Enumerable<T> skipWhile(Predicate<? super T> predicate) {
+    default F_E skipWhile(Predicate<? super T> predicate) {
         return SkipTake.skipWhile(this, predicate);
     }
 
@@ -2127,7 +2092,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or predicate throws
      */
-    default Enumerable<T> skipWhile(BinPredicate<? super T, ? super Integer> predicate) {
+    default F_E skipWhile(BinPredicate<? super T, ? super Integer> predicate) {
         return SkipTake.skipWhile(this, predicate);
     }
 
@@ -2144,7 +2109,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws IllegalArgumentException if {@code count < 0}
      * @throws RuntimeException if enumeration fails
      */
-    default Enumerable<T> take(int count) {
+    default F_E take(int count) {
         return SkipTake.take(this, count);
     }
 
@@ -2161,7 +2126,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws IllegalArgumentException if {@code count < 0}
      * @throws RuntimeException if enumeration fails
      */
-    default Enumerable<T> takeLast(int count) {
+    default F_E takeLast(int count) {
         return SkipTake.takeLast(this, count);
     }
 
@@ -2178,7 +2143,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or predicate throws
      */
-    default Enumerable<T> takeWhile(Predicate<? super T> predicate) {
+    default F_E takeWhile(Predicate<? super T> predicate) {
         return SkipTake.takeWhile(this, predicate);
     }
 
@@ -2195,7 +2160,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or predicate throws
      */
-    default Enumerable<T> takeWhile(BinPredicate<? super T, ? super Integer> predicate) {
+    default F_E takeWhile(BinPredicate<? super T, ? super Integer> predicate) {
         return SkipTake.takeWhile(this, predicate);
     }
 
@@ -2338,7 +2303,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code other} is {@code null}
      * @throws RuntimeException if enumeration fails
      */
-    default Enumerable<T> union(Enumerable<? extends T> other) {
+    default F_E union(F_E other) {
         return Union.union(this, other);
     }
 
@@ -2356,7 +2321,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code other} or {@code comparator} is {@code null}
      * @throws RuntimeException if enumeration fails or comparator throws
      */
-    default Enumerable<T> union(Enumerable<? extends T> other, Comparator<? super T> comparator) {
+    default F_E union(F_E other, Comparator<? super T> comparator) {
         return Union.union(this, other, comparator);
     }
 
@@ -2375,8 +2340,8 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code other} or {@code keyExtractor} is {@code null}
      * @throws RuntimeException if enumeration fails or keyExtractor throws
      */
-    default <K> Enumerable<T> unionBy(
-        Enumerable<? extends T> other, Function<? super T, ? extends K> keyExtractor
+    default <K> F_E unionBy(
+        F_E other, Function<? super T, ? extends K> keyExtractor
     ) {
         return Union.unionBy(this, other, keyExtractor);
     }
@@ -2397,8 +2362,8 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if any parameter is {@code null}
      * @throws RuntimeException if enumeration fails or supplied function/comparator throws
      */
-    default <K> Enumerable<T> unionBy(
-        Enumerable<? extends T> other,
+    default <K> F_E unionBy(
+        F_E other,
         Function<? super T, ? extends K> keyExtractor,
         Comparator<? super K> comparator
     ) {
@@ -2418,7 +2383,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code predicate} is {@code null}
      * @throws RuntimeException if enumeration fails or predicate throws
      */
-    default Enumerable<T> where(Predicate<? super T> predicate) {
+    default F_E where(Predicate<? super T> predicate) {
         return Where.where(this, predicate);
     }
 
@@ -2436,7 +2401,7 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code other} is {@code null}
      * @throws RuntimeException if enumeration fails
      */
-    default <R> Enumerable<Pair<T, R>> zip(Enumerable<? extends R> other) {
+    default <R> BaseEnumerable<Pair<T, R>> zip(BaseEnumerable<? extends R> other) {
         return Zip.zip(this, other);
     }
 
@@ -2456,45 +2421,11 @@ public interface Enumerable<T> extends Iterable<T> {
      * @throws NullPointerException if {@code other} or {@code resultMapping} is {@code null}
      * @throws RuntimeException if enumeration fails or resultMapping throws
      */
-    default <O, R> Enumerable<R> zip(
-        Enumerable<? extends O> other,
+    default <O, R, E_OUT extends BaseEnumerable<R, E_OUT>> E_OUT zip(
+        BaseEnumerable<? extends O> other,
         BinFunction<? super T, ? super O, ? extends R> resultMapping
     ) {
         return Zip.zip(this, other, resultMapping);
     }
 
-    /**
-     * Performs the given action for each element of the {@code Iterable}
-     * until all elements have been processed or the action throws an
-     * exception.  Actions are performed in the order of iteration, if that
-     * order is specified.  Exceptions thrown by the action are relayed to the
-     * caller.
-     * <p>
-     * The behavior of this method is unspecified if the action performs
-     * side-effects that modify the underlying source of elements, unless an
-     * overriding class has specified a concurrent modification policy.
-     *
-     * <p>
-     *     Specially,
-     * </p>
-     *
-     * @implSpec
-     * <p>The default implementation behaves as if:
-     * <pre>{@code
-     *     for (T t : this)
-     *         action.accept(t);
-     * }</pre>
-     *
-     * @param action The action to be performed for each element
-     * @throws NullPointerException if the specified action is null
-     */
-    @Override
-    default void forEach(Consumer<? super T> action) {
-        try (Enumerator<T> enumerator = enumerator()) {
-            while (enumerator.moveNext()) {
-                T current = enumerator.current();
-                action.accept(current);
-            }
-        }
-    }
 }

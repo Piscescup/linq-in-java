@@ -40,6 +40,231 @@ public final class Min {
     }
 
     /**
+     * Returns the minimum value in the sequence.
+     *
+     * @throws NoSuchElementException if the sequence is empty
+     */
+    public static int intMin(Enumerable<Integer> source) {
+        NullCheck.requireNonNull(source);
+
+        try (Enumerator<Integer> e = source.enumerator()) {
+            if (!e.moveNext())
+                throw new NoSuchElementException("Sequence contains no elements");
+
+            int min = e.current();
+
+            while (e.moveNext()) {
+                int value = e.current();
+                if (value < min)
+                    min = value;
+            }
+
+            return min;
+        }
+    }
+
+    /**
+     * Returns the minimum value in the sequence value in the sequence, ignoring {@code null}.
+     *
+     * @throws NoSuchElementException if no non-null elements exist
+     */
+    public static int intMinIgnoreNull(Enumerable<Integer> source) {
+        NullCheck.requireNonNull(source);
+
+        boolean found = false;
+        int min = 0;
+
+        try (Enumerator<Integer> e = source.enumerator()) {
+            while (e.moveNext()) {
+                Integer value = e.current();
+                if (value != null) {
+                    if (!found || value < min) {
+                        min = value;
+                        found = true;
+                    }
+                }
+            }
+        }
+
+        if (!found)
+            throw new NoSuchElementException("Sequence contains no non-null elements");
+
+        return min;
+    }
+
+    /**
+     * Returns the minimum value in the sequence.
+     *
+     * @throws NoSuchElementException if the sequence is empty
+     */
+    public static long longMin(Enumerable<Long> source) {
+        NullCheck.requireNonNull(source);
+
+        try (Enumerator<Long> e = source.enumerator()) {
+            if (!e.moveNext())
+                throw new NoSuchElementException("Sequence contains no elements");
+
+            long min = e.current();
+
+            while (e.moveNext()) {
+                long value = e.current();
+                if (value < min)
+                    min = value;
+            }
+
+            return min;
+        }
+    }
+
+    /**
+     * Returns the minimum value in the sequence value in the sequence, ignoring {@code null}.
+     * Null values are ignored.
+     *
+     * @throws NoSuchElementException if no non-null elements exist
+     */
+    public static long longMinIgnoreNull(Enumerable<Long> source) {
+        NullCheck.requireNonNull(source);
+
+        boolean found = false;
+        long min = 0L;
+
+        try (Enumerator<Long> e = source.enumerator()) {
+            while (e.moveNext()) {
+                Long value = e.current();
+                if (value != null) {
+                    if (!found || value < min) {
+                        min = value;
+                        found = true;
+                    }
+                }
+            }
+        }
+
+        if (!found)
+            throw new NoSuchElementException("Sequence contains no non-null elements");
+
+        return min;
+    }
+
+    /**
+     * Returns the minimum value in the sequence.
+     *
+     * <p>Comparison is performed using {@link Float#compare(float, float)}.</p>
+     *
+     * @throws IllegalArgumentException if the sequence is empty
+     * @since 1.0.3
+     */
+    public static float floatMin(Enumerable<Float> source) {
+        NullCheck.requireNonNull(source);
+
+        try (Enumerator<Float> e = source.enumerator()) {
+            if (!e.moveNext())
+                throw new IllegalArgumentException("Sequence contains no elements");
+
+            float min = e.current(); // may throw NPE due to unboxing if null
+
+            while (e.moveNext()) {
+                float value = e.current(); // may throw NPE due to unboxing if null
+                if (Float.compare(value, min) < 0)
+                    min = value;
+            }
+
+            return min;
+        }
+    }
+
+    /**
+     * Returns the minimum non-null value in the sequence.
+     *
+     * <p>Null values are ignored.</p>
+     * <p>Comparison is performed using {@link Float#compare(float, float)}.</p>
+     *
+     * @throws IllegalArgumentException if the sequence contains no non-null elements
+     * @since 1.0.3
+     */
+    public static float floatMinIgnoreNull(Enumerable<Float> source) {
+        NullCheck.requireNonNull(source);
+
+        boolean found = false;
+        float min = 0.0f;
+
+        try (Enumerator<Float> e = source.enumerator()) {
+            while (e.moveNext()) {
+                Float value = e.current();
+                if (value != null) {
+                    if (!found || Float.compare(value, min) < 0) {
+                        min = value;
+                        found = true;
+                    }
+                }
+            }
+        }
+
+        if (!found)
+            throw new IllegalArgumentException("Sequence contains no non-null elements");
+
+        return min;
+    }
+
+
+    /**
+     * Returns the minimum value in the sequence.
+     *
+     * <p>Uses {@link Double#compare(double, double)} for comparison.
+     *
+     * @throws NoSuchElementException if the sequence is empty
+     */
+    public static double doubleMin(Enumerable<Double> source) {
+        NullCheck.requireNonNull(source);
+
+        try (Enumerator<Double> e = source.enumerator()) {
+            if (!e.moveNext())
+                throw new NoSuchElementException("Sequence contains no elements");
+
+            double min = e.current();
+
+            while (e.moveNext()) {
+                double value = e.current();
+                if (Double.compare(value, min) < 0)
+                    min = value;
+            }
+
+            return min;
+        }
+    }
+
+    /**
+     * Returns the minimum value in the sequence value in the sequence, ignoring {@code null}.
+     *
+     * <p>Uses {@link Double#compare(double, double)} for comparison.
+     *
+     * @throws NoSuchElementException if no non-null elements exist
+     */
+    public static double doubleMinIgnoreNull(Enumerable<Double> source) {
+        NullCheck.requireNonNull(source);
+
+        boolean found = false;
+        double min = 0.0d;
+
+        try (Enumerator<Double> e = source.enumerator()) {
+            while (e.moveNext()) {
+                Double value = e.current();
+                if (value != null) {
+                    if (!found || Double.compare(value, min) < 0) {
+                        min = value;
+                        found = true;
+                    }
+                }
+            }
+        }
+
+        if (!found)
+            throw new NoSuchElementException("Sequence contains no non-null elements");
+
+        return min;
+    }
+
+    /**
      * Returns the minimum {@code int} value produced by applying the given mapping
      * function to each element of the source sequence.
      *

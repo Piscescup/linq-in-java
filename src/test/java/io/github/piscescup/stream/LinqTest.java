@@ -2,13 +2,13 @@ package io.github.piscescup.stream;
 
 import io.github.piscescup.linq.Enumerable;
 import io.github.piscescup.linq.Linq;
+import io.github.piscescup.linq.primitive.IntEnumerable;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.function.ToIntFunction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -24,7 +24,7 @@ public class LinqTest {
     void testSelect() {
         Enumerable<Integer> numbers = Linq.of(1, 2, 3, 4, 5);
 
-        List<Integer> result = numbers.select(x -> x * 2).toList();
+        List<Integer> result = numbers.selectToObj(x -> x * 2).toList();
 
         assertEquals(Arrays.asList(2, 4, 6, 8, 10), result);
     }
@@ -157,6 +157,20 @@ public class LinqTest {
 
         assertEquals(1, min);
     }
+
+    @Test
+    public void testPrimitive() {
+        long t1 = System.nanoTime();
+        IntEnumerable integers = Linq.primitiveInts(1, 2, 3, 4, 5);
+        int sum = integers
+            .selectToInt(x -> x * x)
+            .intSum();
+        long t2 = System.nanoTime();
+        System.out.println("Sum of squares: " + sum);
+        System.out.println("Time taken: " + (t2 - t1) + " nanoseconds");
+
+    }
+
 }
 
 record Person(String name, int age, String address) {

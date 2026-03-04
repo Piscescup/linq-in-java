@@ -21,6 +21,96 @@ public final class Sum {
         );
     }
 
+    public static int intSumIgnoreNull(Enumerable<Integer> source) {
+        int sum = 0;
+
+        try (Enumerator<Integer> enumerator = source.enumerator()) {
+            while (enumerator.moveNext()) {
+                Integer current = enumerator.current();
+                if (current == null) continue;
+
+                sum = Math.addExact(sum, current);
+            }
+        }
+
+        return sum;
+    }
+
+    public static int intSum(Enumerable<Integer> source) {
+        int sum = 0;
+
+        try (Enumerator<Integer> enumerator = source.enumerator()) {
+            while (enumerator.moveNext()) {
+                Integer current = enumerator.current();
+                if (current == null) throw new NullPointerException("Sequence contains null element");
+
+                sum = Math.addExact(sum, current);
+            }
+        }
+
+        return sum;
+    }
+
+    public static long longSumIgnoreNull(Enumerable<Long> source) {
+        long sum = 0;
+
+        try (Enumerator<Long> enumerator = source.enumerator()) {
+            while (enumerator.moveNext()) {
+                Long current = enumerator.current();
+                if (current == null) continue;
+
+                sum = Math.addExact(sum, current);
+            }
+        }
+
+        return sum;
+    }
+
+    public static long longSum(Enumerable<Long> source) {
+        long sum = 0;
+
+        try (Enumerator<Long> enumerator = source.enumerator()) {
+            while (enumerator.moveNext()) {
+                Long current = enumerator.current();
+                if (current == null) throw new NullPointerException("Sequence contains null element");
+
+                sum = Math.addExact(sum, current);
+            }
+        }
+
+        return sum;
+    }
+
+    public static double doubleSumIgnoreNull(Enumerable<Double> source) {
+        double sum = 0;
+
+        try (Enumerator<Double> enumerator = source.enumerator()) {
+            while (enumerator.moveNext()) {
+                Double current = enumerator.current();
+                if (current == null) continue;
+
+                sum += current;
+            }
+        }
+
+        return sum;
+    }
+
+    public static double doubleSum(Enumerable<Double> source) {
+        double sum = 0;
+
+        try (Enumerator<Double> enumerator = source.enumerator()) {
+            while (enumerator.moveNext()) {
+                Double current = enumerator.current();
+                if (current == null) throw new NullPointerException("Sequence contains null element");
+
+                sum += current;
+            }
+        }
+
+        return sum;
+    }
+
     /**
      * Computes the sum of {@code int}-mapped values of the elements in the given sequence.
      *
