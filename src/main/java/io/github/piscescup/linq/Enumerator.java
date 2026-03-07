@@ -1,4 +1,4 @@
-package io.github.piscescup.linq;
+package io.github.piscescup;
 
 import java.util.Iterator;
 import java.util.function.Consumer;
