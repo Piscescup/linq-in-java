@@ -6,9 +6,6 @@ import io.github.piscescup.interfaces.exfunction.BinFunction;
 import io.github.piscescup.interfaces.exfunction.BinPredicate;
 import io.github.piscescup.linq.operation.intermediate.*;
 import io.github.piscescup.linq.operation.terminal.*;
-import io.github.piscescup.linq.primitive.DoubleEnumerable;
-import io.github.piscescup.linq.primitive.IntEnumerable;
-import io.github.piscescup.linq.primitive.LongEnumerable;
 import io.github.piscescup.util.validation.NullCheck;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -1425,6 +1422,16 @@ public interface Enumerable<T> extends Iterable<T> {
     }
 
     /**
+     * Returns the maximum element of the sequence.
+     * @return the maximum element
+     * @throws NoSuchElementException if the sequence is empty
+     * @throws ClassCastException if class {@link T} does not implement {@link Comparable} (implementation-defined)
+     */
+    default T max() {
+        return Max.max(this);
+    }
+
+    /**
      * Returns the maximum projected {@code int} value.
      *
      * <h3>Example</h3>
@@ -1516,6 +1523,16 @@ public interface Enumerable<T> extends Iterable<T> {
      */
     default <K extends Comparable<? super K>> T maxBy(Function<? super T, ? extends K> keyExtractor) {
         return Max.maxBy(this, keyExtractor);
+    }
+
+    /**
+     * Returns the minimum element of the sequence.
+     * @return the minimum element
+      *@throws NoSuchElementException if the sequence is empty
+     * @throws ClassCastException if class {@link T} does not implement {@link Comparable} (implementation-defined)
+     */
+    default T min() {
+        return Min.min(this);
     }
 
     /**
@@ -1888,11 +1905,11 @@ public interface Enumerable<T> extends Iterable<T> {
      * }</pre>
      *
      * @param intMapping mapping function producing {@code int}
-     * @return a projected {@link IntEnumerable}
+     * @return a projected {@link Enumerable} of boxed {@code Integer}
      * @throws NullPointerException if {@code intMapping} is {@code null}
      * @throws RuntimeException if enumeration fails or mapping throws
      */
-    default IntEnumerable selectToInt(ToIntFunction<? super T> intMapping) {
+    default Enumerable<Integer> selectToInt(ToIntFunction<? super T> intMapping) {
         return Select.selectToInt(this, intMapping);
     }
 
@@ -1905,11 +1922,11 @@ public interface Enumerable<T> extends Iterable<T> {
      * }</pre>
      *
      * @param longMapping mapping function producing {@code long}
-     * @return a projected {@link LongEnumerable}
+     * @return a projected {@link Enumerable} of boxed {@code Long}
      * @throws NullPointerException if {@code longMapping} is {@code null}
      * @throws RuntimeException if enumeration fails or mapping throws
      */
-    default LongEnumerable selectToLong(ToLongFunction<? super T> longMapping) {
+    default Enumerable<Long> selectToLong(ToLongFunction<? super T> longMapping) {
         return Select.selectToLong(this, longMapping);
     }
 
@@ -1922,11 +1939,11 @@ public interface Enumerable<T> extends Iterable<T> {
      * }</pre>
      *
      * @param doubleMapping mapping function producing {@code double}
-     * @return a projected {@link DoubleEnumerable}
+     * @return a projected {@link Enumerable} of boxed {@code Double}
      * @throws NullPointerException if {@code doubleMapping} is {@code null}
      * @throws RuntimeException if enumeration fails or mapping throws
      */
-    default DoubleEnumerable selectToDouble(ToDoubleFunction<? super T> doubleMapping) {
+    default Enumerable<Double> selectToDouble(ToDoubleFunction<? super T> doubleMapping) {
         return Select.selectToDouble(this, doubleMapping);
     }
 

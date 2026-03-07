@@ -7,9 +7,7 @@ import io.github.piscescup.linq.Enumerator;
 import io.github.piscescup.linq.enumerator.AbstractEnumerator;
 import io.github.piscescup.pair.ImmutablePair;
 import io.github.piscescup.util.validation.NullCheck;
-import org.jetbrains.annotations.NotNull;
 
-import java.nio.file.FileAlreadyExistsException;
 import java.util.*;
 import java.util.function.Function;
 
@@ -328,7 +326,6 @@ class AggregateByEnumerator<T, K, R> extends AbstractEnumerator<Pair<K, R>> {
 
                 R acc = map.get(key);
                 if (acc == null && !map.containsKey(key)) {
-                    // 第一次看到该 key：初始化累积值
                     acc = useKeyMapping ? keyMapping.apply(key) : seed;
                 }
 
