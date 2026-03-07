@@ -2,7 +2,6 @@ package io.github.piscescup.stream;
 
 import io.github.piscescup.linq.Enumerable;
 import io.github.piscescup.linq.Linq;
-import io.github.piscescup.linq.primitive.IntEnumerable;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 
@@ -144,7 +143,7 @@ public class LinqTest {
     void testMax() {
         Enumerable<Integer> numbers = Linq.of(1, 2, 3, 4, 5);
 
-        int max = numbers.maxByInt(i -> i);
+        int max = numbers.max();
 
         assertEquals(5, max);
     }
@@ -153,22 +152,9 @@ public class LinqTest {
     void testMin() {
         Enumerable<Integer> numbers = Linq.of(1, 2, 3, 4, 5);
 
-        int min = numbers.minByInt(i -> i * i);
+        int min = numbers.min();
 
         assertEquals(1, min);
-    }
-
-    @Test
-    public void testPrimitive() {
-        long t1 = System.nanoTime();
-        IntEnumerable integers = Linq.primitiveInts(1, 2, 3, 4, 5);
-        int sum = integers
-            .selectToInt(x -> x * x)
-            .intSum();
-        long t2 = System.nanoTime();
-        System.out.println("Sum of squares: " + sum);
-        System.out.println("Time taken: " + (t2 - t1) + " nanoseconds");
-
     }
 
 }

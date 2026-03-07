@@ -487,4 +487,39 @@ public final class Max {
             return result;
         }
     }
+
+    /**
+     * Returns the maximum element in the sequence according to natural ordering.
+     * @param source the source sequence
+     * @return the maximum element
+     * @param <T> element type (must implement {@link Comparable})
+     * @throws NoSuchElementException if the sequence is empty
+     * @throws IllegalArgumentException if elements are not {@link Comparable}
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T max(Enumerable<T> source) {
+        NullCheck.requireNonNull(source);
+
+        try (Enumerator<T> enumerator = source.enumerator()) {
+            if (!enumerator.moveNext())
+                throw new NoSuchElementException("Sequence contains no elements");
+
+            T result = enumerator.current();
+
+            if (!(result instanceof Comparable))
+                throw new IllegalArgumentException("Elements must be Comparable");
+
+            Comparable<? super T> maxComparable = (Comparable<? super T>) result;
+
+            while (enumerator.moveNext()) {
+                T value = enumerator.current();
+                if (maxComparable.compareTo(value) < 0) {
+                    result = value;
+                    maxComparable = (Comparable<? super T>) value;
+                }
+            }
+
+            return result;
+        }
+    }
 }

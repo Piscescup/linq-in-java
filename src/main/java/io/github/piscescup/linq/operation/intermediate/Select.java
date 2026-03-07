@@ -2,11 +2,7 @@ package io.github.piscescup.linq.operation.intermediate;
 
 import io.github.piscescup.linq.Enumerable;
 import io.github.piscescup.linq.Enumerator;
-import io.github.piscescup.linq.Linq;
 import io.github.piscescup.linq.enumerator.AbstractEnumerator;
-import io.github.piscescup.linq.primitive.DoubleEnumerable;
-import io.github.piscescup.linq.primitive.IntEnumerable;
-import io.github.piscescup.linq.primitive.LongEnumerable;
 import io.github.piscescup.util.validation.NullCheck;
 
 import java.util.function.*;
@@ -91,37 +87,49 @@ public final class Select {
         return new SelectManyEnumerable<>(source, collectionSelector, resultSelector);
     }
 
-    public static <T> IntEnumerable selectToInt(
+    /**
+     * Projects each element of the source sequence to an {@code int} and returns a sequence of the results.
+     * @param source the source sequence
+     * @param intMapping the mapping function from source element to {@code int}
+     * @return a sequence of {@code int} results
+     * @param <T> the source element type
+     */
+    public static <T> Enumerable<Integer> selectToInt(
         Enumerable<T> source,
         ToIntFunction<? super T> intMapping
     ) {
         NullCheck.requireNonNull(source);
         NullCheck.requireNonNull(intMapping);
 
-        return new IntEnumerable.IntLinq(() -> new SelectToIntEnumerator<>(source.enumerator(), intMapping));
+        return new SelectEnumerable<>(
+            source,
+            intMapping::applyAsInt
+        );
     }
 
-    public static <T> LongEnumerable selectToLong(
+    public static <T> Enumerable<Long> selectToLong(
         Enumerable<T> source,
         ToLongFunction<? super T> mapper
     ) {
         NullCheck.requireNonNull(source);
         NullCheck.requireNonNull(mapper);
 
-        return new LongEnumerable.LongLinq(
-            () -> new SelectToLongEnumerator<>(source.enumerator(), mapper)
+        return new SelectEnumerable<>(
+            source,
+            mapper::applyAsLong
         );
     }
 
-    public static <T> DoubleEnumerable selectToDouble(
+    public static <T> Enumerable<Double> selectToDouble(
         Enumerable<T> source,
         ToDoubleFunction<? super T> mapper
     ) {
         NullCheck.requireNonNull(source);
         NullCheck.requireNonNull(mapper);
 
-        return new DoubleEnumerable.DoubleLinq(
-            () -> new SelectToDoubleEnumerator<>(source.enumerator(), mapper)
+        return new SelectEnumerable<>(
+            source,
+            mapper::applyAsDouble
         );
     }
 

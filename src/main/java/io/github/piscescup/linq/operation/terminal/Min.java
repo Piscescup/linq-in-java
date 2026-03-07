@@ -477,4 +477,39 @@ public final class Min {
             return result;
         }
     }
+
+    /**
+     * Returns the minimum element in the sequence according to natural ordering.
+     * @param source the source sequence
+     * @return the minimum element
+     * @param <T> element type (must implement {@link Comparable})
+     * @throws NoSuchElementException if the sequence is empty
+     * @throws IllegalArgumentException if elements are not {@link Comparable}
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T min(Enumerable<T> source) {
+        NullCheck.requireNonNull(source);
+
+        try (Enumerator<T> enumerator = source.enumerator()) {
+            if (!enumerator.moveNext())
+                throw new NoSuchElementException("Sequence contains no elements");
+
+            T result = enumerator.current();
+
+            if (!(result instanceof Comparable))
+                throw new IllegalArgumentException("Elements must be Comparable");
+
+            Comparable<Object> min = (Comparable<Object>) result;
+
+            while (enumerator.moveNext()) {
+                T value = enumerator.current();
+                if (min.compareTo(value) > 0) {
+                    result = value;
+                    min = (Comparable<Object>) value;
+                }
+            }
+
+            return result;
+        }
+    }
 }
